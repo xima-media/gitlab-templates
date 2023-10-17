@@ -4,5 +4,4 @@ test-php-stan:
   script:
     - composer run ci:php:stan
   rules:
-    - if: $CI_COMMIT_AUTHOR = 'Renovate Bot <dev@t3.xima-services.net>'
-      when: never
+    - if: $CI_COMMIT_AUTHOR != 'Renovate Bot <dev@t3.xima-services.net>'
