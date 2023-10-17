@@ -7,3 +7,6 @@ test-xml-lint:
   script:
     - apk add --update --no-cache libxml2-utils
     - composer run ci:xml:lint
+  rules:
+    - if: $CI_COMMIT_AUTHOR = 'Renovate Bot <dev@t3.xima-services.net>'
+      when: never
