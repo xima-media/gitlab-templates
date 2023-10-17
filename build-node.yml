@@ -1,0 +1,13 @@
+build-node:
+  stage: build
+  image:
+    pull_policy: if-not-present
+  cache:
+    paths: []
+  before_script: [ ]
+  script:
+    - npm ci --unsafe-perm
+    - npm run build
+  artifacts:
+    paths:
+    expire_in: 1 day

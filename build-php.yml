@@ -1,0 +1,9 @@
+build-php:
+  stage: build
+  script:
+    - composer install --ignore-platform-reqs --optimize-autoloader --no-ansi --no-interaction --no-progress
+  artifacts:
+    paths:
+      - vendor/
+      - public/
+    expire_in: 1 day
