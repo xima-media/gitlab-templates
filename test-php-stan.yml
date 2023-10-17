@@ -1,0 +1,5 @@
+test-php-stan:
+  stage: test
+  needs: [ "build-php" ]
+  script:
+    - composer run ci:php:stan
