@@ -1,0 +1,4 @@
+test-php-lint:
+  stage: test
+  script:
+    - composer run ci:php:lint
