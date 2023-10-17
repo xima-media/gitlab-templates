@@ -1,6 +1,10 @@
 build-php:
   stage: build
+  cache:
+    paths:
+      - .composer-cache/
   script:
+    - composer config -g cache-dir "$(pwd)/.composer-cache"
     - composer install --ignore-platform-reqs --optimize-autoloader --no-ansi --no-interaction --no-progress
   artifacts:
     paths:

@@ -11,3 +11,5 @@
     - cp "$SSH_KNOWN_HOSTS" ~/.ssh/known_hosts
     - chmod 644 ~/.ssh/known_hosts
     - echo -e "Host *\n\tStrictHostKeyChecking yes\n\tUserKnownHostsFile=~/.ssh/known_hosts\n\n" > ~/.ssh/config
+    - BRANCH_ID=${CI_COMMIT_BRANCH%%_*}
+    - BASE_BRANCH_ID=${BASE_BRANCH%%_*}
