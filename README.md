@@ -2,6 +2,7 @@
 
 ## Available jobs
 
+* `.deploy-prepare.yml`
 * `build-php`
 * `build-node` ⚠️ needs configuration
 * `test-php-lint`

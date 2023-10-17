@@ -1,0 +1,13 @@
+.deploy-prepare:
+  stage: deploy
+  needs: [ "build-php" ]
+  before_script:
+    - export no_proxy=localhost && export noproxy=localhost
+    - apk add --update --quiet rsync gzip
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - cp "$SSH_KNOWN_HOSTS" ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - echo -e "Host *\n\tStrictHostKeyChecking yes\n\tUserKnownHostsFile=~/.ssh/known_hosts\n\n" > ~/.ssh/config
