@@ -14,3 +14,4 @@ build-node:
   rules:
     - if: $RESET_JOB == 'true'
       when: never
+    - when: on_success
