@@ -11,6 +11,3 @@ build-node:
   artifacts:
     paths:
     expire_in: 1 day
-  rules:
-    - if: $RESET_JOB == 'true'
-      when: never

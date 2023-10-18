@@ -11,5 +11,3 @@ build-php:
       - vendor/
       - public/
     expire_in: 1 day
-  rules:
-    - if: $RESET_JOB == 'true'
