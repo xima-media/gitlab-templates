@@ -4,4 +4,6 @@ test-php-stan:
   script:
     - composer run ci:php:stan
   rules:
+    - if: $RESET_JOB == 'true'
+      when: never
     - if: $CI_COMMIT_AUTHOR != 'Renovate Bot <dev@t3.xima-services.net>' && $CI_COMMIT_BRANCH !~ /^renovate.*$/
