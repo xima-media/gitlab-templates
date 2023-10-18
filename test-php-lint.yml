@@ -3,5 +3,4 @@ test-php-lint:
   script:
     - composer run ci:php:lint
   rules:
-    - if: $CI_COMMIT_AUTHOR == 'Renovate Bot <dev@t3.xima-services.net>' && $CI_COMMIT_BRANCH =~ /^renovate.*$/
-      when: never
+    - if: $CI_COMMIT_AUTHOR != 'Renovate Bot <dev@t3.xima-services.net>' && $CI_COMMIT_BRANCH !~ /^renovate.*$/
