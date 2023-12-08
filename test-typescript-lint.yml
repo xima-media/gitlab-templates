@@ -1,4 +1,4 @@
-test-php-stan:
+test-typescript-eslint:
   stage: test
   needs: [ "build-node" ]
   script:
