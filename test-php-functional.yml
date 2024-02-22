@@ -1,4 +1,4 @@
-test-functional:
+test-php-functional:
   stage: test
   needs: [ "build-php" ]
   cache:
