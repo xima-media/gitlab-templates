@@ -1,12 +1,8 @@
-test-xml-lint:
+test-typescript-eslint:
   stage: test
-  needs: [ "build-php" ]
-  cache:
-    paths: [ ]
-  before_script: [ ]
+  needs: [ "build-node" ]
   script:
-    - apk add --update --no-cache libxml2-utils
-    - composer run ci:xml:lint
+    - npm run ts:lint
   rules:
     - if: $RESET_JOB == 'true'
       when: never
