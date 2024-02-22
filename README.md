@@ -9,6 +9,7 @@
 * `test-php-cs-fixer`
 * `test-php-stan`
 * `test-xml-lint`
+* `test-yaml-lint`
 
 ## Configure jobs
 
