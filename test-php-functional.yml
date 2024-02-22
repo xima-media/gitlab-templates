@@ -10,8 +10,12 @@ test-php-functional:
       variables:
         MARIADB_ROOT_PASSWORD: root
   script:
-    - vendor/bin/phpunit -c phpunit.functional.xml
+    - vendor/bin/phpunit -c phpunit.functional.xml --log-junit phpunit-report.xml
   rules:
     - if: $RESET_JOB == 'true'
       when: never
     - if: $CI_COMMIT_AUTHOR != 'Renovate Bot <dev@t3.xima-services.net>' || $CI_COMMIT_BRANCH !~ /^renovate.*$/
+  artifacts:
+    when: always
+    reports:
+      junit: phpunit-report.xml
