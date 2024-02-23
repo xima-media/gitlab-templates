@@ -5,7 +5,7 @@ test-php-functional:
     paths: [ ]
   before_script: [ ]
   services:
-    - name: mariadb:10.4
+    - name: mariadb:10.11
       alias: db
       variables:
         MARIADB_ROOT_PASSWORD: root
