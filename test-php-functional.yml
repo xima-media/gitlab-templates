@@ -10,7 +10,7 @@ test-php-functional:
       variables:
         MARIADB_ROOT_PASSWORD: root
   script:
-    - vendor/bin/phpunit -c phpunit.functional.xml --log-junit phpunit-report.xml
+    - composer run ci:test:functional
   rules:
     - if: $RESET_JOB == 'true'
       when: never
