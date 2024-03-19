@@ -12,6 +12,7 @@ include:
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/test-php-stan.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/test-php-unit.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/test-php-functional.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/test-typoscript-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/test-xml-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/test-yaml-lint.yml'
 ```
@@ -31,6 +32,7 @@ include:
 * `test-php-stan`
 * `test-php-unit`
 * `test-php-functional`
+* `test-typoscript-lint`
 * `test-xml-lint`
 * `test-yaml-lint`
 
