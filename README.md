@@ -7,6 +7,7 @@ include:
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/.deploy-prepare.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/build-php.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/build-node.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/test-html-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/test-php-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/test-php-cs-fixer.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/test-php-stan.yml'
@@ -27,6 +28,7 @@ include:
 * `build-node` ⚠️ needs configuration
 
 ### Stage `test`
+* `test-html-lint` ⚠️ needs configuration
 * `test-php-lint`
 * `test-php-cs-fixer`
 * `test-php-stan`
@@ -45,9 +47,19 @@ Add this to your `.gitlab-ci.yml` to configure the node version and asset paths:
 ```
 build-node:
   image:
-    name: node:16
+    name: node:18.17.1-slim
   artifacts:
     paths:
       - packages/xm_dkfz_net_site/Resources/Public/Css/dist
       - packages/xm_dkfz_net_site/Resources/Public/JavaScript/dist
+```
+
+### `test-html-lint`
+
+Add this to your `.gitlab-ci.yml` to configure the node version:
+
+```
+test-html-lint:
+  image:
+    name: node:18.17.1-slim
 ```
