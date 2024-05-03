@@ -29,7 +29,7 @@ include:
 * `build-node` ⚠️ needs configuration
 
 ### Stage `test`
-* `test-es-lint`
+* `test-es-lint` ⚠️ needs configuration
 * `test-html-lint` ⚠️ needs configuration
 * `test-php-lint`
 * `test-php-cs-fixer`
@@ -54,6 +54,17 @@ build-node:
     paths:
       - packages/xm_dkfz_net_site/Resources/Public/Css/dist
       - packages/xm_dkfz_net_site/Resources/Public/JavaScript/dist
+```
+
+
+### `test-es-lint`
+
+Add this to your `.gitlab-ci.yml` to configure the node version:
+
+```
+test-es-lint:
+  image:
+    name: node:18.17.1-slim
 ```
 
 ### `test-html-lint`
