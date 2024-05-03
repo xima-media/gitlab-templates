@@ -1,8 +1,8 @@
-test-typescript-lint:
+test-es-lint:
   stage: test
   needs: [ "build-node" ]
   script:
-    - npm run ts:lint
+    - npm run es:lint
   rules:
     - if: $RESET_JOB == 'true'
       when: never

@@ -7,6 +7,7 @@ include:
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/.deploy-prepare.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/build-php.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/build-node.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/test-es-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/test-html-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/test-php-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/test-php-cs-fixer.yml'
@@ -28,6 +29,7 @@ include:
 * `build-node` ⚠️ needs configuration
 
 ### Stage `test`
+* `test-es-lint`
 * `test-html-lint` ⚠️ needs configuration
 * `test-php-lint`
 * `test-php-cs-fixer`
