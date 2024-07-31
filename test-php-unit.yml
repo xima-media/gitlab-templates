@@ -9,7 +9,10 @@ test-php-unit:
   rules:
     - if: $RESET_JOB == 'true'
       when: never
+    - if: $CI_COMMIT_BRANCH == $BASE_BRANCH
     - if: $CI_COMMIT_AUTHOR != 'Renovate Bot <dev@t3.xima-services.net>' || $CI_COMMIT_BRANCH !~ /^renovate.*$/
+      changes:
+        - "**/*.php"
   artifacts:
     when: always
     reports:
