@@ -42,11 +42,24 @@ include:
 
 ## Configure jobs
 
+### `build-php`
+
+You can set custom options for the composer install command via environment variable:
+
+```yaml
+variables:
+  COMPOSER_INSTALL_OPTIONS: "--ignore-platform-req=ext-ldap"
+
+include:
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/main/build-php.yml'
+```
+
+
 ### `build-node`
 
 Add this to your `.gitlab-ci.yml` to configure the node version and asset paths:
 
-```
+```yaml
 build-node:
   image:
     name: node:18.17.1-slim
@@ -61,7 +74,7 @@ build-node:
 
 Add this to your `.gitlab-ci.yml` to configure the node version:
 
-```
+```yaml
 test-es-lint:
   image:
     name: node:18.17.1-slim
@@ -71,7 +84,7 @@ test-es-lint:
 
 Add this to your `.gitlab-ci.yml` to configure the node version:
 
-```
+```yaml
 test-html-lint:
   image:
     name: node:18.17.1-slim
