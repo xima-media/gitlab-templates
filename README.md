@@ -4,19 +4,19 @@ Collection of reusable GitLab steps.
 
 ```yml
 include:
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/blob/1.0.0/.deploy-prepare.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/blob/1.0.0/build-php.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/blob/1.0.0/build-node.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/blob/1.0.0/test-es-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/blob/1.0.0/test-html-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/blob/1.0.0/test-php-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/blob/1.0.0/test-php-cs-fixer.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/blob/1.0.0/test-php-stan.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/blob/1.0.0/test-php-unit.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/blob/1.0.0/test-php-functional.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/blob/1.0.0/test-typoscript-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/blob/1.0.0/test-xml-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/blob/1.0.0/test-yaml-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/.deploy-prepare.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/build-php.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/build-node.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-es-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-html-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-php-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-php-cs-fixer.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-php-stan.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-php-unit.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-php-functional.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-typoscript-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-xml-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-yaml-lint.yml'
 ```
 
 ## Available jobs
@@ -51,7 +51,7 @@ variables:
   COMPOSER_INSTALL_OPTIONS: "--ignore-platform-req=ext-ldap"
 
 include:
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/blob/1.0.0/build-php.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/build-php.yml'
 ```
 
 
