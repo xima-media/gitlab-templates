@@ -3,8 +3,10 @@ build-node:
   image:
     pull_policy: if-not-present
   cache:
-    key: "$CI_COMMIT_REF_SLUG-node"
     policy: push
+    key: 
+      files:
+        - package-lock.json
     paths:
       - node_modules/
   script:
