@@ -2,8 +2,14 @@ build-node:
   stage: build
   image:
     pull_policy: if-not-present
+  cache:
+    - key: 
+        files:
+          - package-lock.json
+      paths:
+        - node_modules/
   script:
-    - npm ci --unsafe-perm
+    - if [ ! -d "node_modules" ]; then npm ci --unsafe-perm; fi
     - npm run build
   artifacts:
     paths:
