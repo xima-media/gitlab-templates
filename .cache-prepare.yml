@@ -6,7 +6,8 @@ default:
       paths:
         - node_modules/
     - key: 
-        files: composer.lock
+        files: 
+          - composer.lock
       paths:
         - .composer-cache/
         - vendor/
