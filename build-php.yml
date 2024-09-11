@@ -1,8 +1,10 @@
 build-php:
   stage: build
   cache:
-    key: "$CI_COMMIT_REF_SLUG-composer"
     policy: push
+    key:
+      files:
+        - composer.lock
     paths:
       - .composer-cache/
       - vendor/
