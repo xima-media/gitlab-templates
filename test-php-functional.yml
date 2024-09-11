@@ -1,9 +1,7 @@
 test-php-functional:
   stage: test
-  needs: [ "build-php" ]
-  cache:
-    paths: [ ]
-  before_script: [ ]
+  dependencies:
+    - build-php
   services:
     - name: mariadb:10.11
       alias: db

@@ -1,6 +1,7 @@
 test-php-stan:
   stage: test
-  needs: [ "build-php" ]
+  dependencies:
+    - build-php
   script:
     - composer run ci:php:stan
   rules:

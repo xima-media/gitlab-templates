@@ -1,6 +1,7 @@
 test-es-lint:
   stage: test
-  needs: [ "build-node" ]
+  dependencies:
+    - build-node
   script:
     - npm run es:lint
   rules:

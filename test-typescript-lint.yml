@@ -1,6 +1,7 @@
 test-typescript-lint:
   stage: test
-  needs: [ "build-node" ]
+  dependencies:
+    - build-node
   script:
     - npm run ts:lint
   rules:

@@ -1,6 +1,7 @@
 test-html-lint:
   stage: test
-  needs: [ "build-node" ]
+  dependencies:
+    - build-node
   script:
     - npm run html:lint
   rules:

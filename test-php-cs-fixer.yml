@@ -1,6 +1,7 @@
 test-php-cs-fixer:
   stage: test
-  needs: [ "build-php" ]
+  dependencies:
+    - build-php
   script:
     - composer run ci:php:fixer
   rules:
