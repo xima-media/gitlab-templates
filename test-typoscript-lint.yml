@@ -1,9 +1,6 @@
 test-typoscript-lint:
   stage: test
   needs: [ "build-php" ]
-  cache:
-    paths: [ ]
-  before_script: [ ]
   script:
     - composer run ci:typoscript:lint
   rules:

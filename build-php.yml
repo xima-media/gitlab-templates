@@ -1,8 +1,12 @@
 build-php:
   stage: build
   cache:
+    key: "$CI_COMMIT_REF_SLUG-composer"
+    policy: push
     paths:
       - .composer-cache/
+      - vendor/
+      - public/
   script:
     - composer config -g cache-dir "$(pwd)/.composer-cache"
     - composer install --optimize-autoloader --no-ansi --no-interaction --no-progress $COMPOSER_INSTALL_OPTIONS

@@ -1,9 +1,6 @@
 test-xml-lint:
   stage: test
   needs: [ "build-php" ]
-  cache:
-    paths: [ ]
-  before_script: [ ]
   script:
     - apk add --update --no-cache libxml2-utils
     - composer run ci:xml:lint
