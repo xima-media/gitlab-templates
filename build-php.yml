@@ -1,14 +1,5 @@
 build-php:
   stage: build
-  cache:
-    policy: push
-    key:
-      files:
-        - composer.lock
-    paths:
-      - .composer-cache/
-      - vendor/
-      - public/
   script:
     - composer config -g cache-dir "$(pwd)/.composer-cache"
     - composer install --optimize-autoloader --no-ansi --no-interaction --no-progress $COMPOSER_INSTALL_OPTIONS
