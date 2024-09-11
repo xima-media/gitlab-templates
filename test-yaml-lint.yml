@@ -1,6 +1,7 @@
 test-yaml-lint:
   stage: test
-  needs: []
+  needs:
+    - build-php
   script:
     - composer run ci:yaml:lint
   rules:
