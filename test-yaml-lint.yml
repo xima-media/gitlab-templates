@@ -1,5 +1,6 @@
 test-yaml-lint:
   stage: test
+  needs: []
   script:
     - composer run ci:yaml:lint
   rules:

@@ -1,6 +1,4 @@
 .deploy-prepare:
-  stage: deploy
-  needs: [ "build-php" ]
   before_script:
     - export no_proxy=localhost && export noproxy=localhost
     - apk add --update --quiet rsync gzip

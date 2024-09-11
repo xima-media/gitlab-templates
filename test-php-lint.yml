@@ -1,5 +1,6 @@
 test-php-lint:
   stage: test
+  needs: []
   script:
     - composer run ci:php:lint
   rules:
