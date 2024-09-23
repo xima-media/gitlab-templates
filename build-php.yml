@@ -9,8 +9,9 @@ build-php:
         - vendor/
   script:
     - composer config -g cache-dir "$(pwd)/.composer-cache"
-    - if [ ! -d "vendor" ]; then composer install --optimize-autoloader --no-ansi --no-interaction --no-progress $COMPOSER_INSTALL_OPTIONS; fi
+    - composer install --optimize-autoloader --no-ansi --no-interaction --no-progress $COMPOSER_INSTALL_OPTIONS
   artifacts:
     paths:
       - vendor/
+      - public/
     expire_in: 1 day
