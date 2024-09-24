@@ -1,0 +1,21 @@
+build-php:
+  stage: build
+  cache:
+    - key: 
+        files: 
+          - composer.lock
+          - public/.htaccess
+          - public/typo3conf/AdditionalConfiguration.php
+          - public/typo3conf/LocalConfiguration.php
+      paths:
+        - .composer-cache/
+        - vendor/
+        - public/
+  script:
+    - composer config -g cache-dir "$(pwd)/.composer-cache"
+    - if [ ! -d "vendor" ]; then composer install --optimize-autoloader --no-ansi --no-interaction --no-progress $COMPOSER_INSTALL_OPTIONS; fi
+  artifacts:
+    paths:
+      - vendor/
+      - public/
+    expire_in: 1 day
