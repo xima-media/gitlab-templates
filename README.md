@@ -26,6 +26,7 @@ include:
 
 ### Stage `build`
 * `build-php`
+* `build-php-v11`
 * `build-node` ⚠️ needs configuration
 
 ### Stage `test`
