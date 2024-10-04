@@ -5,6 +5,8 @@ build-php:
         files: 
           - composer.lock
           - public/.htaccess
+          - public/typo3conf/AdditionalConfiguration.php
+          - public/typo3conf/LocalConfiguration.php
       paths:
         - .composer-cache/
         - vendor/
