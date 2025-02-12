@@ -8,6 +8,7 @@ include:
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/build-php.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/build-node.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-composer-normalize.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-composer-sitepackage.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-es-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-html-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-php-lint.yml'
@@ -32,6 +33,7 @@ include:
 
 ### Stage `test`
 * `test-composer-normalize`
+* `test-composer-sitepackage` ⚠️ needs configuration
 * `test-es-lint` ⚠️ needs configuration
 * `test-html-lint` ⚠️ needs configuration
 * `test-php-lint`
@@ -55,6 +57,16 @@ variables:
 
 include:
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/build-php.yml'
+```
+
+### `test-composer-sitepackage`
+
+Add this to your `.gitlab-ci.yml` and configure the path of the `composer.json` of your sitepackage:
+
+```yaml
+test-composer-sitepackage:
+  script:
+    - php sitepackage-req-checker.php packages/sitepackage_name/composer.json --ci=sitepackage-req-checker-report.xml
 ```
 
 
