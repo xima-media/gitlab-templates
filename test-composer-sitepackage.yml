@@ -2,7 +2,7 @@ test-composer-sitepackage:
   stage: test
   needs: [ "build-php" ]
   before_script:
-    - curl --noproxy https://gist.githubusercontent.com/maikschneider/7a3df2a210b54900e21dee361dea64cb/raw/ba47fa3496ea62d9f102cf16fc11f56d20c44aa3/sitepackage-req-checker.php > sitepackage-req-checker.php
+    - curl --noproxy '*' https://gist.githubusercontent.com/maikschneider/7a3df2a210b54900e21dee361dea64cb/raw/ba47fa3496ea62d9f102cf16fc11f56d20c44aa3/sitepackage-req-checker.php > sitepackage-req-checker.php
     - chmod +x sitepackage-req-checker.php
   script:
     - echo "This step needs configuration"
