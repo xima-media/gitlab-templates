@@ -1,0 +1,21 @@
+test-composer-sitepackage:
+  stage: test
+  needs: [ "build-php" ]
+  before_script:
+    - curl --noproxy '*' https://gist.githubusercontent.com/maikschneider/7a3df2a210b54900e21dee361dea64cb/raw/ba47fa3496ea62d9f102cf16fc11f56d20c44aa3/sitepackage-req-checker.php > sitepackage-req-checker.php
+    - chmod +x sitepackage-req-checker.php
+  script:
+    - echo "This step needs configuration"
+  rules:
+    - if: $RESET_JOB == 'true'
+      when: never
+    - if: $CI_COMMIT_TAG && $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+      when: never
+    - if: $CI_COMMIT_BRANCH == $BASE_BRANCH
+    - if: $CI_COMMIT_AUTHOR != 'Renovate Bot <dev@t3.xima-services.net>' || $CI_COMMIT_BRANCH !~ /^renovate.*$/
+      changes:
+        - "composer.json"
+  artifacts:
+    when: always
+    reports:
+      junit: sitepackage-req-checker-report.xml
