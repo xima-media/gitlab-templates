@@ -8,6 +8,7 @@ include:
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/build-php.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/build-node.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-composer-normalize.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-editorconfig-lint'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-es-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-html-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-php-lint.yml'
@@ -32,6 +33,7 @@ include:
 
 ### Stage `test`
 * `test-composer-normalize`
+* `test-editorconfig-lint`
 * `test-es-lint` ⚠️ needs configuration
 * `test-html-lint` ⚠️ needs configuration
 * `test-php-lint`
