@@ -1,7 +1,5 @@
 build-node:
   stage: build
-  image:
-    pull_policy: if-not-present
   cache:
     - key: 
         files:
