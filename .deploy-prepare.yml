@@ -6,7 +6,8 @@
     - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
-    - cp "$SSH_KNOWN_HOSTS" ~/.ssh/known_hosts
+    - if [[ ! -z "${SSH_KNOWN_HOSTS}" ]]; then cp "$SSH_KNOWN_HOSTS" ~/.ssh/known_hosts; fi
+    - if [[ ! -z "${SSH_KNOWN_HOSTS_INTERNAL}" ]]; then echo "$SSH_KNOWN_HOSTS_INTERNAL" >> ~/.ssh/known_hosts; fi
     - chmod 644 ~/.ssh/known_hosts
     - echo -e "Host *\n\tStrictHostKeyChecking yes\n\tUserKnownHostsFile=~/.ssh/known_hosts\n\n" > ~/.ssh/config
     - BRANCH_ID=${CI_COMMIT_BRANCH%%_*}
