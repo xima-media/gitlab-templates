@@ -1,3 +1,15 @@
+# Usage: This template is intended to be included in other GitLab CI/CD configuration files.
+# It defines post-development deployment and reset jobs that can be used in a CI/CD pipeline.
+
+# Integration example in importing gitlab-ci.yml:
+#
+# include:
+#   - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/refs/heads/deployment_jobs/deploy.yml'
+#     inputs:
+#       ci_server_url: https://gitlab.com/
+#       test_environment_url: https://test.example.org
+#       live_environment_url: https://www.example.org/
+
 spec:
   inputs:
     ci_server_url:
