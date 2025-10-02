@@ -1,0 +1,200 @@
+spec:
+  inputs:
+    ci_server_url:
+      type: string
+      description: "URL of the CI server for post development deployments."
+    # deployment job variables
+    test_host_branch:
+      type: string
+      default: $TEST_HOST_BRANCH
+      description: "Branch to deploy to test environment."
+    test_environment_url:
+      type: string
+      description: "URL of the test environment."
+    live_environment_url:
+      type: string
+      description: "URL of the live environment."
+    # reset job variables
+    reset_sync_dirs:
+      type: string
+      default: "fileadmin uploads"
+      description: "Space separated list of directories in shared/public/ to sync from source to target environment."
+      regex: ^[a-zA-Z0-9_. -]+$
+    reset_max_size:
+      type: string
+      default: "5M"
+      description: "Maximum file size to sync from source to target environment, e.g. 5M or 1G."
+      regex: ^[0-9]+[KMG]$
+    reset_source:
+      type: string
+      default: "stage=live"
+      description: "Source environment for reset-upload job."
+      regex: ^[a-zA-Z0-9_=]+$
+    reset_target_test:
+      type: string
+      default: "stage=test"
+      description: "Target instance for reset-upload and reset-test-all jobs."
+      regex: ^[a-zA-Z0-9_=]+$
+
+# Deployment jobs
+deploy-test:
+  environment:
+    name: TEST
+    url: $[[ inputs.test_environment_url ]]
+    deployment_tier: testing
+  stage: deploy.postdev
+  extends: .deploy-prepare
+  dependencies:
+    - build-php
+    - build-node
+  rules:
+    - if: $CI_SERVER_URL != $[[ inputs.ci_server_url ]]
+      when: never
+    - if: $RESET_JOB == "true"
+      when: never
+    - if: $CI_COMMIT_BRANCH == $[[ inputs.test_host_branch ]]
+  script:
+    - vendor/bin/dep deploy:unlock test --branch=$CI_COMMIT_BRANCH -vvv
+    - vendor/bin/dep deploy-fast test --branch=$CI_COMMIT_BRANCH -vvv
+
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  dependencies: []
+  rules:
+    - if: $RESET_JOB == "true"
+      when: never
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_SERVER_URL != $[[ inputs.ci_server_url ]]
+  script:
+    - echo "Creating release $CI_COMMIT_SHORT_SHA"
+  release:
+    tag_name: 'v1.0.$CI_PIPELINE_IID'
+    description: 'v1.0.$CI_PIPELINE_IID'
+    ref: '$CI_COMMIT_SHA'
+
+deploy-live:
+  environment:
+    name: LIVE
+    url: $[[ inputs.live_environment_url ]]
+    deployment_tier: production
+  stage: deploy.postdev
+  extends: .deploy-prepare
+  dependencies:
+    - build-php
+    - build-node
+  rules:
+    - if: $CI_SERVER_URL != $[[ inputs.ci_server_url ]]
+      when: never
+    - if: $RESET_JOB == "true"
+      when: never
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+  script:
+    - vendor/bin/dep deploy:unlock live
+    - vendor/bin/dep deploy live -vvv
+
+
+# Reset jobs
+
+reset-upload-db-media:
+  needs:
+    - job: build-php
+  stage: build
+  extends: .deploy-prepare
+  variables:
+  script:
+    # install rclone
+    - apk add --update --quiet rclone jq && rclone version && jq --version
+    # create sftp remote for source from deploy.php
+    - SFTP_HOST=$(vendor/bin/dep config --format json $[[ inputs.reset_source ]] | jq -r '.[].hostname')
+    - SFTP_USER=$(vendor/bin/dep config --format json $[[ inputs.reset_source ]] | jq -r '.[].remote_user')
+    - DEPLOY_PATH=$(vendor/bin/dep config --format json $[[ inputs.reset_source ]] | jq -r '.[].deploy_path')
+    - rclone config create --non-interactive sftp sftp host=${SFTP_HOST} user=${SFTP_USER} port=22 key_use_agent=true
+    # create crypt remote
+    - set -a && . ${RCLONE_RESET_STORAGE_ENV} && . ${RCLONE_RESET_CRYPT_ENV} && set +a
+    - 'rclone config create --non-interactive --obscure ${CRYPT_NAME} crypt remote=storage:${CRYPT_DIR}/${CRYPT_NAME} filename_encoding=base64 password=${CRYPT_PASSWORD} password2=${CRYPT_PASSWORD2}'
+    # dump database on source
+    - vendor/bin/dep db:rmdump "$[[ inputs.reset_source ]]" --options=dumpcode:resetArtifact --no-interaction -vvv
+    - vendor/bin/dep db:export "$[[ inputs.reset_source ]]" --options=dumpcode:resetArtifact --no-interaction -vvv
+    - vendor/bin/dep db:process "$[[ inputs.reset_source ]]" --options=dumpcode:resetArtifact --no-interaction -vvv
+    - vendor/bin/dep db:compress "$[[ inputs.reset_source ]]" --options=dumpcode:resetArtifact --no-interaction -vvv
+    # sync database from sftp to crypt remote
+    - 'rclone sync -v --inplace --metadata "sftp:${DEPLOY_PATH}/.dep/database/" ${CRYPT_NAME}:.dep/database'
+    # sync media files from sftp to crypt remote, excluding large files and processed images
+    - |
+      for dir in $[[ inputs.reset_sync_dirs ]]; do
+        rclone sync -v --inplace --metadata "sftp:${DEPLOY_PATH}/shared/public/${dir}/" "${CRYPT_NAME}:shared/public/${dir}/" \
+          --max-size "$[[ inputs.reset_max_size ]]" \
+          --delete-excluded \
+          --exclude "_processed_/**" \
+          --exclude "*.mp4" \
+          --exclude "*.zip" \
+          --exclude "*.pdf" \
+          --exclude "*.exe" \
+          --exclude "*.doc" \
+          --exclude "*.docx" \
+          --exclude "*.pptx" \
+          --exclude "*.ppt" \
+          --exclude "*.xls" \
+          --exclude "*.xlsx" \
+          --exclude "*.xlsm" \
+          --exclude "*.tiff" \
+          --exclude "*.tif" \
+          --exclude "*.potx" \
+          --exclude "*.mpg" \
+          --exclude "*.mp3" \
+          --exclude "*.avi" \
+          --exclude "*.wmv" \
+          --exclude "*.flv" \
+          --exclude "*.eps" \
+          --exclude "*.ai" \
+          --exclude "*.mov"
+      done
+  rules:
+    - if: $CI_SERVER_URL != $[[ inputs.ci_server_url ]]
+      when: never
+    - if: $RESET_JOB == "true"
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+      allow_failure: true
+
+reset-test-db-media:
+  needs:
+    - job: build-php
+    - job: reset-upload-db-media
+  stage: build
+  extends: .deploy-prepare
+  script:
+    # install rclone
+    - apk add --update --quiet rclone jq && rclone version && jq --version
+    # create sftp remote for target from deploy.php
+    - SFTP_HOST=$(vendor/bin/dep config --format json $[[ inputs.reset_target_test ]] | jq -r '.[].hostname')
+    - SFTP_USER=$(vendor/bin/dep config --format json $[[ inputs.reset_target_test ]] | jq -r '.[].remote_user')
+    - DEPLOY_PATH=$(vendor/bin/dep config --format json $[[ inputs.reset_target_test ]] | jq -r '.[].deploy_path')
+    - rclone config create --non-interactive sftp sftp host=${SFTP_HOST} user=${SFTP_USER} port=22 key_use_agent=true
+    # create crypt remote
+    - apk add --update --quiet rclone jq && rclone version && jq --version
+    - set -a && . ${RCLONE_RESET_STORAGE_ENV} && . ${RCLONE_RESET_CRYPT_ENV} && set +a
+    - 'rclone config create --non-interactive --obscure ${CRYPT_NAME} crypt remote=storage:${CRYPT_DIR}/${CRYPT_NAME} filename_encoding=base64 password=${CRYPT_PASSWORD} password2=${CRYPT_PASSWORD2}'
+    # remove old dump on target
+    - vendor/bin/dep db:rmdump "$[[ inputs.reset_target_test ]]" --options=dumpcode:resetArtifact --no-interaction -vvv
+    # copy database from crypt remote to sftp remote (does not overwrite existing directories)
+    - 'rclone copy -v --inplace --metadata "${CRYPT_NAME}:.dep/database/" "sftp:${DEPLOY_PATH}/.dep/database/"'
+    # copy media files from crypt remote to sftp remote (does not overwrite existing directories)
+    # fix file permissions after copy
+    - |
+      for dir in $[[ inputs.reset_sync_dirs ]]; do
+        rclone copy -v --inplace --metadata "${CRYPT_NAME}:shared/public/${dir}/" "sftp:${DEPLOY_PATH}/shared/public/${dir}/"
+        vendor/bin/dep run "find public/${dir}/ -type f ! -perm 660 -user ${SFTP_USER} -exec chmod 660 {} \;" "$[[ inputs.reset_target_test ]]" --no-interaction -vvv
+      done
+    # import database on target
+    - vendor/bin/dep db:decompress "$[[ inputs.reset_target_test ]]" --options=dumpcode:resetArtifact --no-interaction -vvv
+    - vendor/bin/dep db:process "$[[ inputs.reset_target_test ]]" --options=dumpcode:resetArtifact --no-interaction -vvv
+    - vendor/bin/dep db:import "$[[ inputs.reset_target_test ]]" --options=dumpcode:resetArtifact --no-interaction -vvv
+    - vendor/bin/dep db:rmdump "$[[ inputs.reset_target_test ]]" --options=dumpcode:resetArtifact --no-interaction -vvv
+  rules:
+    - if: $CI_SERVER_URL != $[[ inputs.ci_server_url ]]
+      when: never
+    - if: $RESET_JOB == "true"
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+      allow_failure: true

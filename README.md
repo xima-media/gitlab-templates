@@ -20,6 +20,7 @@ include:
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-typoscript-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-xml-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-yaml-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/deploy.yml'
 ```
 
 ## Available jobs
@@ -46,6 +47,13 @@ include:
 * `test-typoscript-lint`
 * `test-xml-lint`
 * `test-yaml-lint`
+
+### Stage `postdev`
+* `deploy-test`
+* `deploy-live`
+* `release`
+* `reset-upload-db-media`
+* `reset-test-db-media`
 
 ## Configure jobs
 
