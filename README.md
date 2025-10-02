@@ -51,8 +51,8 @@ include:
 ### Stage `postdev`
 * `deploy-test`
 * `deploy-live`
-* `reset-upload-db-media`
-* `reset-test-db-media`
+* `reset-upload`
+* `reset-test`
 
 ### Stage `release`
 * `release`
