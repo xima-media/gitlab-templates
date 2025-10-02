@@ -50,11 +50,11 @@ deploy-test:
     - build-php
     - build-node
   rules:
-    - if: $CI_SERVER_URL != $[[ inputs.ci_server_url ]]
+    - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars]]"'
       when: never
     - if: $RESET_JOB == "true"
       when: never
-    - if: $CI_COMMIT_BRANCH == $[[ inputs.test_host_branch ]]
+    - if: '$CI_COMMIT_BRANCH == "$[[ inputs.test_host_branch | expand_vars]]"'
   script:
     - vendor/bin/dep deploy:unlock test --branch=$CI_COMMIT_BRANCH -vvv
     - vendor/bin/dep deploy-fast test --branch=$CI_COMMIT_BRANCH -vvv
@@ -66,7 +66,7 @@ release:
   rules:
     - if: $RESET_JOB == "true"
       when: never
-    - if: $CI_COMMIT_BRANCH == "main" && $CI_SERVER_URL != $[[ inputs.ci_server_url ]]
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_SERVER_URL != "$[[ inputs.ci_server_url  | expand_vars]]"'
   script:
     - echo "Creating release $CI_COMMIT_SHORT_SHA"
   release:
@@ -85,7 +85,7 @@ deploy-live:
     - build-php
     - build-node
   rules:
-    - if: $CI_SERVER_URL != $[[ inputs.ci_server_url ]]
+    - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars]]"'
       when: never
     - if: $RESET_JOB == "true"
       when: never
@@ -152,7 +152,7 @@ reset-upload-db-media:
           --exclude "*.mov"
       done
   rules:
-    - if: $CI_SERVER_URL != $[[ inputs.ci_server_url ]]
+    - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars]]"'
       when: never
     - if: $RESET_JOB == "true"
     - if: $CI_COMMIT_BRANCH == "main"
@@ -194,7 +194,7 @@ reset-test-db-media:
     - vendor/bin/dep db:import "$[[ inputs.reset_target_test ]]" --options=dumpcode:resetArtifact --no-interaction -vvv
     - vendor/bin/dep db:rmdump "$[[ inputs.reset_target_test ]]" --options=dumpcode:resetArtifact --no-interaction -vvv
   rules:
-    - if: $CI_SERVER_URL != $[[ inputs.ci_server_url ]]
+    - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars]]"'
       when: never
     - if: $RESET_JOB == "true"
     - if: $CI_COMMIT_BRANCH == "main"
