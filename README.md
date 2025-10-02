@@ -51,9 +51,12 @@ include:
 ### Stage `postdev`
 * `deploy-test`
 * `deploy-live`
-* `release`
 * `reset-upload-db-media`
 * `reset-test-db-media`
+
+### Stage `release`
+* `release`
+
 
 ## Configure jobs
 
