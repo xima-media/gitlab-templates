@@ -106,6 +106,21 @@ deploy-live:
     - vendor/bin/dep deploy:unlock live
     - vendor/bin/dep deploy live -vvv
 
+deploy-live-warmup:
+  needs:
+    - job: build-php
+    - job: deploy-live
+  stage: deploy.postdev
+  extends: .deploy-prepare
+  rules:
+    - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
+      when: never
+    - if: $RESET_JOB == "true"
+      when: never
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ && $CI_SERVER_URL == $[[ inputs.url_ci_deploy ]]
+  script:
+    - vendor/bin/dep deploy:cache:warmup live -vvv
+
 
 # Reset jobs
 

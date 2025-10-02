@@ -51,6 +51,7 @@ include:
 ### Stage `postdev`
 * `deploy-test`
 * `deploy-live`
+* `deploy-live-warmup`
 * `reset-upload`
 * `reset-test`
 
