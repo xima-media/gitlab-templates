@@ -78,7 +78,7 @@ release:
   rules:
     - if: $RESET_JOB == "true"
       when: never
-    - if: '$CI_COMMIT_BRANCH == "main" && $CI_SERVER_URL != "$[[ inputs.ci_server_url  | expand_vars ]]"'
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_SERVER_URL == $XIMA_CI_SERVER_URL
   script:
     - echo "Creating release $CI_COMMIT_SHORT_SHA"
   release:
