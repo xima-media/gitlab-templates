@@ -157,6 +157,8 @@ reset-upload:
           --max-size "$[[ inputs.reset_max_size ]]" \
           --delete-excluded \
           --exclude "_processed_/**" \
+          --exclude "_recycler_/**" \
+          --exclude "_temp_/**" \
           --exclude "*.mp4" \
           --exclude "*.zip" \
           --exclude "*.pdf" \
