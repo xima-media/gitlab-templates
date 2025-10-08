@@ -222,7 +222,7 @@ reset-test:
     # copy media files from crypt remote to sftp remote and fix file permissions
     - |
       for dir in $[[ inputs.reset_sync_dirs ]]; do
-        rclone copy -v --inplace --metadata --no-update-modtime --no-update-dir-modtime "${CRYPT_NAME}:shared/public/${dir}/" "sftp:${DEPLOY_PATH}/shared/public/${dir}/"
+        rclone copy -v --inplace --metadata --no-update-modtime --no-update-dir-modtime --sftp-set-modtime=false --size-only "${CRYPT_NAME}:shared/public/${dir}/" "sftp:${DEPLOY_PATH}/shared/public/${dir}/"
         vendor/bin/dep run "find public/${dir}/ -type f ! -perm 660 -user ${SFTP_USER} -exec chmod 660 {} \;" "$[[ inputs.test_instance ]]" --no-interaction -vvv
       done
   rules:
