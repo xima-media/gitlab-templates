@@ -206,17 +206,17 @@ reset-test:
     - vendor/bin/dep db:rmdump "$[[ inputs.test_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
     # copy database from crypt remote to sftp remote
     - 'rclone copy -v --inplace --metadata "${CRYPT_NAME}:.dep/database/" "sftp:${DEPLOY_PATH}/.dep/database/"'
+    # import database on target
+    - vendor/bin/dep db:decompress "$[[ inputs.test_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:process "$[[ inputs.test_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:import "$[[ inputs.test_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:rmdump "$[[ inputs.test_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
     # copy media files from crypt remote to sftp remote and fix file permissions
     - |
       for dir in $[[ inputs.reset_sync_dirs ]]; do
         rclone copy -v --inplace --metadata --no-update-modtime --no-update-dir-modtime "${CRYPT_NAME}:shared/public/${dir}/" "sftp:${DEPLOY_PATH}/shared/public/${dir}/"
         vendor/bin/dep run "find public/${dir}/ -type f ! -perm 660 -user ${SFTP_USER} -exec chmod 660 {} \;" "$[[ inputs.test_instance ]]" --no-interaction -vvv
       done
-    # import database on target
-    - vendor/bin/dep db:decompress "$[[ inputs.test_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:process "$[[ inputs.test_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:import "$[[ inputs.test_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:rmdump "$[[ inputs.test_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
   rules:
     - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
       when: never
