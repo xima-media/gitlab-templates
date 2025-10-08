@@ -131,6 +131,9 @@ reset-upload:
   extends: .deploy-prepare
   variables:
   script:
+    # ensure RCLONE_RESET_STORAGE_ENV and RCLONE_RESET_CRYPT_ENV file variables are set
+    - 'if [ ! -f "${RCLONE_RESET_STORAGE_ENV}" ] || [ ! -f "${RCLONE_RESET_CRYPT_ENV}" ]; then echo "RCLONE_RESET_STORAGE_ENV and RCLONE_RESET_CRYPT_ENV must be set as CI/CD file variables!"; exit 1; fi'
+    # install rclone and jq
     - apk add --update --quiet rclone jq && rclone version && jq --version
     # create rclone sftp remote for source from deploy.php
     - SFTP_HOST=$(vendor/bin/dep config --format json $[[ inputs.live_instance ]] | jq -r '.[].hostname')
@@ -192,6 +195,9 @@ reset-test:
   stage: build
   extends: .deploy-prepare
   script:
+    # ensure RCLONE_RESET_STORAGE_ENV and RCLONE_RESET_CRYPT_ENV file variables are set
+    - 'if [ ! -f "${RCLONE_RESET_STORAGE_ENV}" ] || [ ! -f "${RCLONE_RESET_CRYPT_ENV}" ]; then echo "RCLONE_RESET_STORAGE_ENV and RCLONE_RESET_CRYPT_ENV must be set as CI/CD file variables!"; exit 1; fi'
+    # install rclone and jq
     - apk add --update --quiet rclone jq && rclone version && jq --version
     # create rclone sftp remote for target from deploy.php
     - SFTP_HOST=$(vendor/bin/dep config --format json $[[ inputs.test_instance ]] | jq -r '.[].hostname')
