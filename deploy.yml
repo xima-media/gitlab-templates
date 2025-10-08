@@ -153,7 +153,7 @@ reset-upload:
     # sync media files from sftp to crypt remote with applied filters
     - |
       for dir in $[[ inputs.reset_sync_dirs ]]; do
-        rclone sync -v --inplace --metadata "sftp:${DEPLOY_PATH}/shared/public/${dir}/" "${CRYPT_NAME}:shared/public/${dir}/" \
+        rclone sync -v --inplace --metadata --size-only "sftp:${DEPLOY_PATH}/shared/public/${dir}/" "${CRYPT_NAME}:shared/public/${dir}/" \
           --max-size "$[[ inputs.reset_max_size ]]" \
           --delete-excluded \
           --exclude "_processed_/**" \
