@@ -218,7 +218,6 @@ reset-test:
     - DEPLOY_PATH=$(vendor/bin/dep config --format json $[[ inputs.test_instance ]] | jq -r '.[].deploy_path')
     - rclone config create --non-interactive sftp sftp host=${SFTP_HOST} user=${SFTP_USER} port=22 key_use_agent=true
     # create crypt remote for download
-    - apk add --update --quiet rclone jq && rclone version && jq --version
     - set -a && . ${RCLONE_RESET_STORAGE_ENV} && . ${RCLONE_RESET_CRYPT_ENV} && set +a
     - 'rclone config create --non-interactive --obscure ${CRYPT_NAME} crypt remote=storage:${CRYPT_DIR}/${CRYPT_NAME} filename_encoding=base64 password=${CRYPT_PASSWORD} password2=${CRYPT_PASSWORD2}'
     # remove old dump on target
