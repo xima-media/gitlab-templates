@@ -43,11 +43,11 @@ spec:
       description: "Git reference for the release job."
     release_tag_name:
       type: string
-      default: "v1.0.$CI_PIPELINE_IID"
+      default: "v1.0.${CI_PIPELINE_IID}"
       description: "Tag name for the release job. Semver format required."
     release_description:
       type: string
-      default: "v1.0.$CI_PIPELINE_IID"
+      default: "v1.0.${CI_PIPELINE_IID}"
       description: "Description for the release job."
     # reset job variables
     reset_sync_dirs:
