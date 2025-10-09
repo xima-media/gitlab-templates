@@ -39,7 +39,7 @@ spec:
     # release job variables
     release_ref:
       type: string
-      default: $CI_COMMIT_SHA
+      default: "$CI_COMMIT_SHA"
       description: "Git reference for the release job."
     release_tag_name:
       type: string
@@ -93,11 +93,11 @@ release:
       when: never
     - if: $CI_COMMIT_BRANCH == "main" && $CI_SERVER_URL == $XIMA_CI_SERVER_URL
   script:
-    - echo "Creating release $[[ inputs.release_tag_name | expand_vars ]] for ref $[[ inputs.release_ref | expand_vars ]]"
+    - echo "Creating release $[[ inputs.release_tag_name ]] for ref $[[ inputs.release_ref ]]"
   release:
-    tag_name: $[[ inputs.release_tag_name | expand_vars ]]
-    description: $[[ inputs.release_description | expand_vars ]]
-    ref: $[[ inputs.release_ref | expand_vars ]]
+    tag_name: $[[ inputs.release_tag_name ]]
+    description: $[[ inputs.release_description ]]
+    ref: $[[ inputs.release_ref ]]
 
 deploy-live:
   environment:
