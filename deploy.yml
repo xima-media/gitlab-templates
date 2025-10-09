@@ -36,6 +36,19 @@ spec:
     live_environment_url:
       type: string
       description: "URL of the live environment."
+    # release job variables
+    release_ref:
+      type: string
+      default: $CI_COMMIT_SHA
+      description: "Git reference for the release job."
+    release_tag_name:
+      type: string
+      default: "v1.0.$CI_PIPELINE_IID"
+      description: "Tag name for the release job. Semver format required."
+    release_description:
+      type: string
+      default: "v1.0.$CI_PIPELINE_IID"
+      description: "Description for the release job."
     # reset job variables
     reset_sync_dirs:
       type: string
@@ -80,11 +93,11 @@ release:
       when: never
     - if: $CI_COMMIT_BRANCH == "main" && $CI_SERVER_URL == $XIMA_CI_SERVER_URL
   script:
-    - echo "Creating release $CI_COMMIT_SHORT_SHA"
+    - echo "Creating release $[[ inputs.release_tag_name | expand_vars ]] for ref $[[ inputs.release_ref | expand_vars ]]"
   release:
-    tag_name: 'v1.0.$CI_PIPELINE_IID'
-    description: 'v1.0.$CI_PIPELINE_IID'
-    ref: '$CI_COMMIT_SHA'
+    tag_name: '$[[ inputs.release_tag_name | expand_vars ]]'
+    description: '$[[ inputs.release_description | expand_vars ]]'
+    ref: '$[[ inputs.release_ref | expand_vars ]]'
 
 deploy-live:
   environment:
