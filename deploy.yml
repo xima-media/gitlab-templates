@@ -95,9 +95,9 @@ release:
   script:
     - echo "Creating release $[[ inputs.release_tag_name | expand_vars ]] for ref $[[ inputs.release_ref | expand_vars ]]"
   release:
-    tag_name: '$[[ inputs.release_tag_name | expand_vars ]]'
-    description: '$[[ inputs.release_description | expand_vars ]]'
-    ref: '$[[ inputs.release_ref | expand_vars ]]'
+    tag_name: $[[ inputs.release_tag_name | expand_vars ]]
+    description: $[[ inputs.release_description | expand_vars ]]
+    ref: $[[ inputs.release_ref | expand_vars ]]
 
 deploy-live:
   environment:
