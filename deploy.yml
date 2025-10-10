@@ -135,6 +135,18 @@ deploy-live-warmup:
 
 # Reset jobs
 
+.reset-prepare:
+  script:
+    # ensure RCLONE_RESET_STORAGE_ENV and RCLONE_RESET_CRYPT_ENV file variables are set
+    - 'if [ ! -f "${RCLONE_RESET_STORAGE_ENV}" ] || [ ! -f "${RCLONE_RESET_CRYPT_ENV}" ]; then echo "RCLONE_RESET_STORAGE_ENV and RCLONE_RESET_CRYPT_ENV must be set as CI/CD file variables!"; exit 1; fi'
+    # install rclone and jq
+    - apk add --update --quiet rclone jq && rclone version && jq --version
+    # configure sftp remote
+    - rclone config create --non-interactive sftp sftp host=${SFTP_HOST} user=${SFTP_USER} port=22 key_use_agent=true
+    # configure crypt remote
+    - set -a && . ${RCLONE_RESET_STORAGE_ENV} && . ${RCLONE_RESET_CRYPT_ENV} && set +a
+    - 'rclone config create --non-interactive --obscure ${CRYPT_NAME} crypt remote=storage:${CRYPT_DIR}/${CRYPT_NAME} filename_encoding=base64 password=${CRYPT_PASSWORD} password2=${CRYPT_PASSWORD2}'
+
 reset-upload:
   needs:
     - job: build-php
@@ -142,18 +154,12 @@ reset-upload:
   extends: .deploy-prepare
   variables:
   script:
-    # ensure RCLONE_RESET_STORAGE_ENV and RCLONE_RESET_CRYPT_ENV file variables are set
-    - 'if [ ! -f "${RCLONE_RESET_STORAGE_ENV}" ] || [ ! -f "${RCLONE_RESET_CRYPT_ENV}" ]; then echo "RCLONE_RESET_STORAGE_ENV and RCLONE_RESET_CRYPT_ENV must be set as CI/CD file variables!"; exit 1; fi'
-    # install rclone and jq
-    - apk add --update --quiet rclone jq && rclone version && jq --version
-    # create rclone sftp remote for source from deploy.php
+    # get ssh connection params from deploy.php
     - SFTP_HOST=$(vendor/bin/dep config --format json $[[ inputs.live_instance ]] | jq -r '.[].hostname')
     - SFTP_USER=$(vendor/bin/dep config --format json $[[ inputs.live_instance ]] | jq -r '.[].remote_user')
     - DEPLOY_PATH=$(vendor/bin/dep config --format json $[[ inputs.live_instance ]] | jq -r '.[].deploy_path')
-    - rclone config create --non-interactive sftp sftp host=${SFTP_HOST} user=${SFTP_USER} port=22 key_use_agent=true
-    # create crypt remote for upload
-    - set -a && . ${RCLONE_RESET_STORAGE_ENV} && . ${RCLONE_RESET_CRYPT_ENV} && set +a
-    - 'rclone config create --non-interactive --obscure ${CRYPT_NAME} crypt remote=storage:${CRYPT_DIR}/${CRYPT_NAME} filename_encoding=base64 password=${CRYPT_PASSWORD} password2=${CRYPT_PASSWORD2}'
+    # set up rclone remotes
+    - !reference [.reset-prepare, script]
     # dump database on source
     - vendor/bin/dep db:rmdump "$[[ inputs.live_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
     - vendor/bin/dep db:export "$[[ inputs.live_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
@@ -208,18 +214,12 @@ reset-test:
   stage: build
   extends: .deploy-prepare
   script:
-    # ensure RCLONE_RESET_STORAGE_ENV and RCLONE_RESET_CRYPT_ENV file variables are set
-    - 'if [ ! -f "${RCLONE_RESET_STORAGE_ENV}" ] || [ ! -f "${RCLONE_RESET_CRYPT_ENV}" ]; then echo "RCLONE_RESET_STORAGE_ENV and RCLONE_RESET_CRYPT_ENV must be set as CI/CD file variables!"; exit 1; fi'
-    # install rclone and jq
-    - apk add --update --quiet rclone jq && rclone version && jq --version
-    # create rclone sftp remote for target from deploy.php
+    # get ssh connection params from deploy.php
     - SFTP_HOST=$(vendor/bin/dep config --format json $[[ inputs.test_instance ]] | jq -r '.[].hostname')
     - SFTP_USER=$(vendor/bin/dep config --format json $[[ inputs.test_instance ]] | jq -r '.[].remote_user')
     - DEPLOY_PATH=$(vendor/bin/dep config --format json $[[ inputs.test_instance ]] | jq -r '.[].deploy_path')
-    - rclone config create --non-interactive sftp sftp host=${SFTP_HOST} user=${SFTP_USER} port=22 key_use_agent=true
-    # create crypt remote for download
-    - set -a && . ${RCLONE_RESET_STORAGE_ENV} && . ${RCLONE_RESET_CRYPT_ENV} && set +a
-    - 'rclone config create --non-interactive --obscure ${CRYPT_NAME} crypt remote=storage:${CRYPT_DIR}/${CRYPT_NAME} filename_encoding=base64 password=${CRYPT_PASSWORD} password2=${CRYPT_PASSWORD2}'
+    # set up rclone remotes
+    - !reference [.reset-prepare, script]
     # remove old dump on target
     - vendor/bin/dep db:rmdump "$[[ inputs.test_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
     # copy database from crypt remote to sftp remote
