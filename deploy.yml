@@ -166,7 +166,7 @@ reset-upload:
     - vendor/bin/dep db:process "$[[ inputs.live_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
     - vendor/bin/dep db:compress "$[[ inputs.live_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
     # sync database from sftp remote to crypt remote
-    - 'rclone sync -v --inplace --metadata "sftp:${DEPLOY_PATH}/.dep/database/" ${CRYPT_NAME}:.dep/database'
+    - 'rclone sync -v --inplace --metadata --include "*dumpcode=resetJob*.sql" "sftp:${DEPLOY_PATH}/.dep/database/dumps" ${CRYPT_NAME}:.dep/database/dumps'
     # sync media files from sftp to crypt remote with applied filters
     - |
       for dir in $[[ inputs.reset_sync_dirs ]]; do
@@ -223,7 +223,7 @@ reset-test:
     # remove old dump on target
     - vendor/bin/dep db:rmdump "$[[ inputs.test_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
     # copy database from crypt remote to sftp remote
-    - 'rclone copy -v --inplace --metadata "${CRYPT_NAME}:.dep/database/" "sftp:${DEPLOY_PATH}/.dep/database/"'
+    - 'rclone copy -v --inplace --metadata "${CRYPT_NAME}:.dep/database/dumps" "sftp:${DEPLOY_PATH}/.dep/database/dumps"'
     # import database on target
     - vendor/bin/dep db:decompress "$[[ inputs.test_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
     - vendor/bin/dep db:process "$[[ inputs.test_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
