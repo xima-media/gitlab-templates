@@ -139,8 +139,6 @@ deploy-live-warmup:
   script:
     # ensure RCLONE_RESET_STORAGE_ENV and RCLONE_RESET_CRYPT_ENV file variables are set
     - 'if [ ! -f "${RCLONE_RESET_STORAGE_ENV}" ] || [ ! -f "${RCLONE_RESET_CRYPT_ENV}" ]; then echo "RCLONE_RESET_STORAGE_ENV and RCLONE_RESET_CRYPT_ENV must be set as CI/CD file variables!"; exit 1; fi'
-    # install rclone and jq
-    - apk add --update --quiet rclone jq && rclone version && jq --version
     # configure sftp remote
     - rclone config create --non-interactive sftp sftp host=${SFTP_HOST} user=${SFTP_USER} port=22 key_use_agent=true
     # configure crypt remote
@@ -154,6 +152,8 @@ reset-upload:
   extends: .deploy-prepare
   variables:
   script:
+    # install rclone and jq
+    - apk add --update --quiet rclone jq && rclone version && jq --version
     # get ssh connection params from deploy.php
     - SFTP_HOST=$(vendor/bin/dep config --format json $[[ inputs.live_instance ]] | jq -r '.[].hostname')
     - SFTP_USER=$(vendor/bin/dep config --format json $[[ inputs.live_instance ]] | jq -r '.[].remote_user')
@@ -214,6 +214,8 @@ reset-test:
   stage: build
   extends: .deploy-prepare
   script:
+    # install rclone and jq
+    - apk add --update --quiet rclone jq && rclone version && jq --version
     # get ssh connection params from deploy.php
     - SFTP_HOST=$(vendor/bin/dep config --format json $[[ inputs.test_instance ]] | jq -r '.[].hostname')
     - SFTP_USER=$(vendor/bin/dep config --format json $[[ inputs.test_instance ]] | jq -r '.[].remote_user')
