@@ -16,6 +16,10 @@ spec:
       type: string
       description: "URL of the CI server for post development deployments."
     # deployment job variables
+    test_deploy:
+      type: boolean
+      default: true
+      description: "Whether to run the test deployment job and related jobs."
     test_host_branch:
       type: string
       default: $TEST_HOST_BRANCH
@@ -28,6 +32,10 @@ spec:
     test_environment_url:
       type: string
       description: "URL of the test environment."
+    live_deploy:
+      type: boolean
+      default: true
+      description: "Whether to run the live deployment and related jobs."
     live_instance:
       type: string
       default: "stage=live"
@@ -73,6 +81,8 @@ deploy-test:
     - build-php
     - build-node
   rules:
+    - if: '"$[[ inputs.test_deploy ]]" != "true"'
+      when: never
     - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
       when: never
     - if: $RESET_JOB == "true"
@@ -108,6 +118,8 @@ deploy-live:
     - build-php
     - build-node
   rules:
+    - if: '"$[[ inputs.live_deploy ]]" != "true"'
+      when: never
     - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
       when: never
     - if: $RESET_JOB == "true"
@@ -124,6 +136,8 @@ deploy-live-warmup:
   stage: deploy.postdev
   extends: .deploy-prepare
   rules:
+    - if: '"$[[ inputs.live_deploy ]]" != "true"'
+      when: never
     - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
       when: never
     - if: $RESET_JOB == "true"
@@ -200,6 +214,8 @@ reset-upload:
           --exclude "*.mov"
       done
   rules:
+    - if: '"$[[ inputs.live_deploy ]]" != "true"'
+      when: never
     - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
       when: never
     - if: $RESET_JOB == "true"
@@ -238,6 +254,8 @@ reset-test:
         vendor/bin/dep run "find public/${dir}/ -type f ! -perm 660 -user ${SFTP_USER} -exec chmod 660 {} \;" "$[[ inputs.test_instance ]]" --no-interaction -vvv
       done
   rules:
+    - if: '"$[[ inputs.test_deploy ]]" != "true"'
+      when: never
     - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
       when: never
     - if: '$RESET_JOB == "true" && "$[[ inputs.test_host_branch | expand_vars ]]" == "development"'
