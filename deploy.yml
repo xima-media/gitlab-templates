@@ -213,7 +213,6 @@ reset-upload:
     # prepare exclude args for rclone
     - |
       EXCLUDE_ARGS=""
-      echo '$[[ inputs.reset_exclude ]]'
       for pattern in $(echo '$[[ inputs.reset_exclude ]]' | jq -r '.[]'); do
         EXCLUDE_ARGS="$EXCLUDE_ARGS --exclude \"$pattern\""
       done
