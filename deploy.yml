@@ -66,6 +66,35 @@ spec:
       default: "5M"
       description: "Maximum file size to sync from source to target environment, e.g. 5M or 1G."
       regex: ^[0-9]+[KMG]$
+    reset_exclude:
+      type: array
+      default:
+        - '_processed_/**'
+        - '_recycler_/**'
+        - '_temp_/**'
+        - '*.mp4'
+        - '*.zip'
+        - '*.pdf'
+        - '*.exe'
+        - '*.doc'
+        - '*.docx'
+        - '*.pptx'
+        - '*.ppt'
+        - '*.xls'
+        - '*.xlsx'
+        - '*.xlsm'
+        - '*.tiff'
+        - '*.tif'
+        - '*.potx'
+        - '*.mpg'
+        - '*.mp3'
+        - '*.avi'
+        - '*.wmv'
+        - '*.flv'
+        - '*.eps'
+        - '*.ai'
+        - '*.mov'
+      description: "Array of rclone --exclude patterns for media file sync."
 
 ---
 
@@ -181,37 +210,19 @@ reset-upload:
     - vendor/bin/dep db:compress "$[[ inputs.live_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
     # sync database from sftp remote to crypt remote
     - 'rclone sync -v --inplace --metadata --include "*dumpcode=resetJob*" --delete-excluded "sftp:${DEPLOY_PATH}/.dep/database/dumps/" ${CRYPT_NAME}:.dep/database/dumps'
+    # prepare exclude args for rclone
+    - |
+      EXCLUDE_ARGS=""
+      for pattern in $(echo "$[[ inputs.reset_exclude ]]" | jq -r '.[]'); do
+        EXCLUDE_ARGS="$EXCLUDE_ARGS --exclude \"$pattern\""
+      done
+      echo "Prepared rclone exclude args: $EXCLUDE_ARGS"
     # sync media files from sftp to crypt remote with applied filters
     - |
       for dir in $[[ inputs.reset_sync_dirs ]]; do
-        rclone sync -v --inplace --metadata --size-only "sftp:${DEPLOY_PATH}/shared/public/${dir}/" "${CRYPT_NAME}:shared/public/${dir}/" \
-          --max-size "$[[ inputs.reset_max_size ]]" \
-          --delete-excluded \
-          --exclude "_processed_/**" \
-          --exclude "_recycler_/**" \
-          --exclude "_temp_/**" \
-          --exclude "*.mp4" \
-          --exclude "*.zip" \
-          --exclude "*.pdf" \
-          --exclude "*.exe" \
-          --exclude "*.doc" \
-          --exclude "*.docx" \
-          --exclude "*.pptx" \
-          --exclude "*.ppt" \
-          --exclude "*.xls" \
-          --exclude "*.xlsx" \
-          --exclude "*.xlsm" \
-          --exclude "*.tiff" \
-          --exclude "*.tif" \
-          --exclude "*.potx" \
-          --exclude "*.mpg" \
-          --exclude "*.mp3" \
-          --exclude "*.avi" \
-          --exclude "*.wmv" \
-          --exclude "*.flv" \
-          --exclude "*.eps" \
-          --exclude "*.ai" \
-          --exclude "*.mov"
+        CMD="rclone sync -v --inplace --metadata --size-only \"sftp:${DEPLOY_PATH}/shared/public/${dir}/\" \"${CRYPT_NAME}:shared/public/${dir}/\" --max-size=\"$[[ inputs.reset_max_size ]]\" --delete-excluded $EXCLUDE_ARGS"
+        echo "$CMD"
+        sh -c "$CMD"
       done
   rules:
     - if: '"$[[ inputs.live_deploy ]]" != "true"'
