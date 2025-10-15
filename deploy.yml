@@ -16,7 +16,7 @@ spec:
       type: string
       description: "URL of the CI server for post development deployments."
     # deployment job variables
-    test_deploy:
+    test_deploy_enabled:
       type: boolean
       default: true
       description: "Whether to run the test deployment job and related jobs."
@@ -24,7 +24,7 @@ spec:
       type: string
       default: $TEST_HOST_BRANCH
       description: "Branch to deploy to test environment."
-    test_instance:
+    test_instance_name:
       type: string
       default: "stage=test"
       description: "Instance name for test deployment job."
@@ -32,11 +32,11 @@ spec:
     test_environment_url:
       type: string
       description: "URL of the test environment."
-    live_deploy:
+    live_deploy_enabled:
       type: boolean
       default: true
       description: "Whether to run the live deployment and related jobs."
-    live_instance:
+    live_instance_name:
       type: string
       default: "stage=live"
       description: "Instance name for live deployment job."
@@ -61,12 +61,12 @@ spec:
       default: "fileadmin uploads"
       description: "Space separated list of directories in shared/public/ to sync from source to target environment."
       regex: ^[a-zA-Z0-9_. -]+$
-    reset_max_size:
+    reset_sync_max_size:
       type: string
       default: "5M"
       description: "Maximum file size to sync from source to target environment, e.g. 5M or 1G."
       regex: ^[0-9]+[KMG]$
-    reset_exclude:
+    reset_sync_excludes:
       type: array
       default:
         - '_processed_/**'
@@ -110,7 +110,7 @@ deploy-test:
     - build-php
     - build-node
   rules:
-    - if: '"$[[ inputs.test_deploy ]]" != "true"'
+    - if: '"$[[ inputs.test_deploy_enabled ]]" != "true"'
       when: never
     - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
       when: never
@@ -118,8 +118,8 @@ deploy-test:
       when: never
     - if: '$CI_COMMIT_BRANCH == "$[[ inputs.test_host_branch | expand_vars ]]"'
   script:
-    - vendor/bin/dep deploy:unlock $[[ inputs.test_instance ]] --branch=$CI_COMMIT_BRANCH -vvv
-    - vendor/bin/dep deploy-fast $[[ inputs.test_instance ]] --branch=$CI_COMMIT_BRANCH -vvv
+    - vendor/bin/dep deploy:unlock $[[ inputs.test_instance_name ]] --branch=$CI_COMMIT_BRANCH -vvv
+    - vendor/bin/dep deploy-fast $[[ inputs.test_instance_name ]] --branch=$CI_COMMIT_BRANCH -vvv
 
 release:
   stage: release
@@ -147,7 +147,7 @@ deploy-live:
     - build-php
     - build-node
   rules:
-    - if: '"$[[ inputs.live_deploy ]]" != "true"'
+    - if: '"$[[ inputs.live_deploy_enabled ]]" != "true"'
       when: never
     - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
       when: never
@@ -155,8 +155,8 @@ deploy-live:
       when: never
     - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
   script:
-    - vendor/bin/dep deploy:unlock $[[ inputs.live_instance ]]
-    - vendor/bin/dep deploy $[[ inputs.live_instance ]] -vvv
+    - vendor/bin/dep deploy:unlock $[[ inputs.live_instance_name ]]
+    - vendor/bin/dep deploy $[[ inputs.live_instance_name ]] -vvv
 
 deploy-live-warmup:
   needs:
@@ -165,7 +165,7 @@ deploy-live-warmup:
   stage: deploy.postdev
   extends: .deploy-prepare
   rules:
-    - if: '"$[[ inputs.live_deploy ]]" != "true"'
+    - if: '"$[[ inputs.live_deploy_enabled ]]" != "true"'
       when: never
     - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
       when: never
@@ -173,7 +173,7 @@ deploy-live-warmup:
       when: never
     - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
   script:
-    - vendor/bin/dep deploy:cache:warmup $[[ inputs.live_instance ]] -vvv
+    - vendor/bin/dep deploy:cache:warmup $[[ inputs.live_instance_name ]] -vvv
 
 
 # Reset jobs
@@ -198,34 +198,34 @@ reset-upload:
     # install rclone and jq
     - apk add --update --quiet rclone jq && rclone version && jq --version
     # get ssh connection params from deploy.php
-    - SFTP_HOST=$(vendor/bin/dep config --format json $[[ inputs.live_instance ]] | jq -r '.[].hostname')
-    - SFTP_USER=$(vendor/bin/dep config --format json $[[ inputs.live_instance ]] | jq -r '.[].remote_user')
-    - DEPLOY_PATH=$(vendor/bin/dep config --format json $[[ inputs.live_instance ]] | jq -r '.[].deploy_path')
+    - SFTP_HOST=$(vendor/bin/dep config --format json $[[ inputs.live_instance_name ]] | jq -r '.[].hostname')
+    - SFTP_USER=$(vendor/bin/dep config --format json $[[ inputs.live_instance_name ]] | jq -r '.[].remote_user')
+    - DEPLOY_PATH=$(vendor/bin/dep config --format json $[[ inputs.live_instance_name ]] | jq -r '.[].deploy_path')
     # set up rclone remotes
     - !reference [.reset-prepare, script]
     # dump database on source
-    - vendor/bin/dep db:rmdump "$[[ inputs.live_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:export "$[[ inputs.live_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:process "$[[ inputs.live_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:compress "$[[ inputs.live_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:rmdump "$[[ inputs.live_instance_name ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:export "$[[ inputs.live_instance_name ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:process "$[[ inputs.live_instance_name ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:compress "$[[ inputs.live_instance_name ]]" --options=dumpcode:resetJob --no-interaction -vvv
     # sync database from sftp remote to crypt remote
     - 'rclone sync -v --inplace --metadata --include "*dumpcode=resetJob*" --delete-excluded "sftp:${DEPLOY_PATH}/.dep/database/dumps/" ${CRYPT_NAME}:.dep/database/dumps'
     # prepare exclude args for rclone
     - |
       EXCLUDE_ARGS=""
-      for pattern in $(echo '$[[ inputs.reset_exclude ]]' | jq -r '.[]'); do
+      for pattern in $(echo '$[[ inputs.reset_sync_excludes ]]' | jq -r '.[]'); do
         EXCLUDE_ARGS="$EXCLUDE_ARGS --exclude \"$pattern\""
       done
       echo "Prepared rclone exclude args: $EXCLUDE_ARGS"
     # sync media files from sftp to crypt remote with applied filters
     - |
       for dir in $[[ inputs.reset_sync_dirs ]]; do
-        CMD="rclone sync -v --inplace --metadata --size-only \"sftp:${DEPLOY_PATH}/shared/public/${dir}/\" \"${CRYPT_NAME}:shared/public/${dir}/\" --max-size=\"$[[ inputs.reset_max_size ]]\" --delete-excluded $EXCLUDE_ARGS"
+        CMD="rclone sync -v --inplace --metadata --size-only \"sftp:${DEPLOY_PATH}/shared/public/${dir}/\" \"${CRYPT_NAME}:shared/public/${dir}/\" --max-size=\"$[[ inputs.reset_sync_max_size ]]\" --delete-excluded $EXCLUDE_ARGS"
         echo "$CMD"
         sh -c "$CMD"
       done
   rules:
-    - if: '"$[[ inputs.live_deploy ]]" != "true"'
+    - if: '"$[[ inputs.live_deploy_enabled ]]" != "true"'
       when: never
     - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
       when: never
@@ -244,30 +244,30 @@ reset-test:
     # install rclone and jq
     - apk add --update --quiet rclone jq && rclone version && jq --version
     # get ssh connection params from deploy.php
-    - SFTP_HOST=$(vendor/bin/dep config --format json $[[ inputs.test_instance ]] | jq -r '.[].hostname')
-    - SFTP_USER=$(vendor/bin/dep config --format json $[[ inputs.test_instance ]] | jq -r '.[].remote_user')
-    - DEPLOY_PATH=$(vendor/bin/dep config --format json $[[ inputs.test_instance ]] | jq -r '.[].deploy_path')
+    - SFTP_HOST=$(vendor/bin/dep config --format json $[[ inputs.test_instance_name ]] | jq -r '.[].hostname')
+    - SFTP_USER=$(vendor/bin/dep config --format json $[[ inputs.test_instance_name ]] | jq -r '.[].remote_user')
+    - DEPLOY_PATH=$(vendor/bin/dep config --format json $[[ inputs.test_instance_name ]] | jq -r '.[].deploy_path')
     # set up rclone remotes
     - !reference [.reset-prepare, script]
     # remove old dump on target
-    - vendor/bin/dep db:rmdump "$[[ inputs.test_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:rmdump "$[[ inputs.test_instance_name ]]" --options=dumpcode:resetJob --no-interaction -vvv
     # copy database from crypt remote to sftp remote
     - 'rclone copy -v --inplace --metadata "${CRYPT_NAME}:.dep/database/dumps/" "sftp:${DEPLOY_PATH}/.dep/database/dumps/"'
     # import database on target
-    - vendor/bin/dep db:decompress "$[[ inputs.test_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:process "$[[ inputs.test_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:import "$[[ inputs.test_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:rmdump "$[[ inputs.test_instance ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:decompress "$[[ inputs.test_instance_name ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:process "$[[ inputs.test_instance_name ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:import "$[[ inputs.test_instance_name ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:rmdump "$[[ inputs.test_instance_name ]]" --options=dumpcode:resetJob --no-interaction -vvv
     # copy media files from crypt remote to sftp remote and fix file permissions
     - |
       for dir in $[[ inputs.reset_sync_dirs ]]; do
         CMD="rclone copy -v --inplace --metadata --no-update-modtime --no-update-dir-modtime --sftp-set-modtime=false --size-only \"${CRYPT_NAME}:shared/public/${dir}/\" \"sftp:${DEPLOY_PATH}/shared/public/${dir}/\""
         echo "$CMD"
         sh -c "$CMD"
-        vendor/bin/dep run "find public/${dir}/ -type f ! -perm 660 -user ${SFTP_USER} -exec chmod 660 {} \;" "$[[ inputs.test_instance ]]" --no-interaction -vvv
+        vendor/bin/dep run "find public/${dir}/ -type f ! -perm 660 -user ${SFTP_USER} -exec chmod 660 {} \;" "$[[ inputs.test_instance_name ]]" --no-interaction -vvv
       done
   rules:
-    - if: '"$[[ inputs.test_deploy ]]" != "true"'
+    - if: '"$[[ inputs.test_deploy_enabled ]]" != "true"'
       when: never
     - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
       when: never
