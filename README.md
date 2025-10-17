@@ -11,6 +11,7 @@ include:
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-editorconfig-lint'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-composer-sitepackage.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-es-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-language-lint'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-html-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-php-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-php-cs-fixer.yml'
@@ -38,6 +39,7 @@ include:
 * `test-composer-sitepackage` ⚠️ needs configuration
 * `test-es-lint` ⚠️ needs configuration
 * `test-html-lint` ⚠️ needs configuration
+* `test-language-lint`
 * `test-php-lint`
 * `test-php-cs-fixer`
 * `test-php-stan`

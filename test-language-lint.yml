@@ -1,0 +1,14 @@
+test-language-lint:
+  stage: test
+  needs: [ "build-php" ]
+  script:
+    - composer run ci:language:lint
+  rules:
+    - if: $RESET_JOB == 'true'
+      when: never
+    - if: $CI_COMMIT_TAG && $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+      when: never
+    - if: $CI_COMMIT_BRANCH == $BASE_BRANCH
+    - if: $CI_COMMIT_AUTHOR != 'Renovate Bot <dev@t3.xima-services.net>' || $CI_COMMIT_BRANCH !~ /^renovate.*$/
+      changes:
+        - "**/*.xlf"
