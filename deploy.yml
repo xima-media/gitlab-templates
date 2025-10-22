@@ -265,6 +265,7 @@ reset-test:
         echo "$CMD"
         sh -c "$CMD"
         vendor/bin/dep run "find public/${dir}/ -type f ! -perm 660 -user ${SFTP_USER} -exec chmod 660 {} \;" "$[[ inputs.test_instance_name ]]" --no-interaction -vvv
+        vendor/bin/dep run "find public/${dir}/ -type d ! -perm 2770 -user ${SFTP_USER} -exec chmod 2770 {} \;" "$[[ inputs.test_instance_name ]]" --no-interaction -vvv
       done
   rules:
     - if: '"$[[ inputs.test_deploy_enabled ]]" != "true"'
