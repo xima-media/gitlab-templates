@@ -1,4 +1,4 @@
-build-php:
+build-php-no-dev:
   stage: build
   cache:
     - key: 
