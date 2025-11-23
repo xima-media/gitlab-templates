@@ -9,7 +9,7 @@ build-php:
         - .composer-cache/
   script:
     - composer config -g cache-dir "$(pwd)/.composer-cache"
-    - composer install --optimize-autoloader --no-ansi --no-interaction --no-progress $COMPOSER_INSTALL_OPTIONS
+    - composer install --optimize-autoloader --no-ansi --no-interaction --no-progress --no-dev $COMPOSER_INSTALL_OPTIONS
   artifacts:
     paths:
       - vendor/
