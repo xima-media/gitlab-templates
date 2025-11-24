@@ -24,10 +24,10 @@ spec:
       type: string
       default: $TEST_HOST_BRANCH
       description: "Branch to deploy to test environment."
-    test_instance_name:
+    test_host_selector:
       type: string
       default: "stage=test"
-      description: "Instance name for test deployment job."
+      description: "Host selector for test deployment job."
       regex: ^[a-zA-Z0-9_=]+$
     test_environment_url:
       type: string
@@ -36,10 +36,10 @@ spec:
       type: boolean
       default: true
       description: "Whether to run the live deployment and related jobs."
-    live_instance_name:
+    live_host_selector:
       type: string
       default: "stage=live"
-      description: "Instance name for live deployment job."
+      description: "Host selector for live deployment job."
       regex: ^[a-zA-Z0-9_=]+$
     live_environment_url:
       type: string
@@ -118,8 +118,8 @@ deploy-test:
       when: never
     - if: '$CI_COMMIT_BRANCH == "$[[ inputs.test_host_branch | expand_vars ]]"'
   script:
-    - vendor/bin/dep deploy:unlock $[[ inputs.test_instance_name ]] --branch=$CI_COMMIT_BRANCH -vvv
-    - vendor/bin/dep deploy-fast $[[ inputs.test_instance_name ]] --branch=$CI_COMMIT_BRANCH -vvv
+    - vendor/bin/dep deploy:unlock $[[ inputs.test_host_selector ]] --branch=$CI_COMMIT_BRANCH -vvv
+    - vendor/bin/dep deploy-fast $[[ inputs.test_host_selector ]] --branch=$CI_COMMIT_BRANCH -vvv
 
 release:
   stage: release
@@ -155,8 +155,8 @@ deploy-live:
       when: never
     - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
   script:
-    - vendor/bin/dep deploy:unlock $[[ inputs.live_instance_name ]]
-    - vendor/bin/dep deploy $[[ inputs.live_instance_name ]] -vvv
+    - vendor/bin/dep deploy:unlock $[[ inputs.live_host_selector ]]
+    - vendor/bin/dep deploy $[[ inputs.live_host_selector ]] -vvv
 
 deploy-live-warmup:
   needs:
@@ -173,7 +173,7 @@ deploy-live-warmup:
       when: never
     - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
   script:
-    - vendor/bin/dep deploy:cache:warmup $[[ inputs.live_instance_name ]] -vvv
+    - vendor/bin/dep deploy:cache:warmup $[[ inputs.live_host_selector ]] -vvv
 
 
 # Reset jobs
@@ -198,16 +198,16 @@ reset-upload:
     # install rclone and jq
     - apk add --update --quiet rclone jq && rclone version && jq --version
     # get ssh connection params from deploy.php
-    - SFTP_HOST=$(vendor/bin/dep config --format json $[[ inputs.live_instance_name ]] | jq -r '.[].hostname')
-    - SFTP_USER=$(vendor/bin/dep config --format json $[[ inputs.live_instance_name ]] | jq -r '.[].remote_user')
-    - DEPLOY_PATH=$(vendor/bin/dep config --format json $[[ inputs.live_instance_name ]] | jq -r '.[].deploy_path')
+    - SFTP_HOST=$(vendor/bin/dep config --format json $[[ inputs.live_host_selector ]] | jq -r '.[].hostname')
+    - SFTP_USER=$(vendor/bin/dep config --format json $[[ inputs.live_host_selector ]] | jq -r '.[].remote_user')
+    - DEPLOY_PATH=$(vendor/bin/dep config --format json $[[ inputs.live_host_selector ]] | jq -r '.[].deploy_path')
     # set up rclone remotes
     - !reference [.reset-prepare, script]
     # dump database on source
-    - vendor/bin/dep db:rmdump "$[[ inputs.live_instance_name ]]" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:export "$[[ inputs.live_instance_name ]]" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:process "$[[ inputs.live_instance_name ]]" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:compress "$[[ inputs.live_instance_name ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:rmdump "$[[ inputs.live_host_selector ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:export "$[[ inputs.live_host_selector ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:process "$[[ inputs.live_host_selector ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:compress "$[[ inputs.live_host_selector ]]" --options=dumpcode:resetJob --no-interaction -vvv
     # sync database from sftp remote to crypt remote
     - 'rclone sync -v --inplace --metadata --include "*dumpcode=resetJob*" --delete-excluded "sftp:${DEPLOY_PATH}/.dep/database/dumps/" ${CRYPT_NAME}:.dep/database/dumps'
     # prepare exclude args for rclone
@@ -244,28 +244,28 @@ reset-test:
     # install rclone and jq
     - apk add --update --quiet rclone jq && rclone version && jq --version
     # get ssh connection params from deploy.php
-    - SFTP_HOST=$(vendor/bin/dep config --format json $[[ inputs.test_instance_name ]] | jq -r '.[].hostname')
-    - SFTP_USER=$(vendor/bin/dep config --format json $[[ inputs.test_instance_name ]] | jq -r '.[].remote_user')
-    - DEPLOY_PATH=$(vendor/bin/dep config --format json $[[ inputs.test_instance_name ]] | jq -r '.[].deploy_path')
+    - SFTP_HOST=$(vendor/bin/dep config --format json $[[ inputs.test_host_selector ]] | jq -r '.[].hostname')
+    - SFTP_USER=$(vendor/bin/dep config --format json $[[ inputs.test_host_selector ]] | jq -r '.[].remote_user')
+    - DEPLOY_PATH=$(vendor/bin/dep config --format json $[[ inputs.test_host_selector ]] | jq -r '.[].deploy_path')
     # set up rclone remotes
     - !reference [.reset-prepare, script]
     # remove old dump on target
-    - vendor/bin/dep db:rmdump "$[[ inputs.test_instance_name ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:rmdump "$[[ inputs.test_host_selector ]]" --options=dumpcode:resetJob --no-interaction -vvv
     # copy database from crypt remote to sftp remote
     - 'rclone copy -v --inplace --metadata "${CRYPT_NAME}:.dep/database/dumps/" "sftp:${DEPLOY_PATH}/.dep/database/dumps/"'
     # import database on target
-    - vendor/bin/dep db:decompress "$[[ inputs.test_instance_name ]]" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:process "$[[ inputs.test_instance_name ]]" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:import "$[[ inputs.test_instance_name ]]" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:rmdump "$[[ inputs.test_instance_name ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:decompress "$[[ inputs.test_host_selector ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:process "$[[ inputs.test_host_selector ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:import "$[[ inputs.test_host_selector ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:rmdump "$[[ inputs.test_host_selector ]]" --options=dumpcode:resetJob --no-interaction -vvv
     # copy media files from crypt remote to sftp remote and fix file permissions
     - |
       for dir in $[[ inputs.reset_sync_dirs ]]; do
         CMD="rclone copy -v --inplace --metadata --no-update-modtime --no-update-dir-modtime --sftp-set-modtime=false --size-only \"${CRYPT_NAME}:shared/public/${dir}/\" \"sftp:${DEPLOY_PATH}/shared/public/${dir}/\""
         echo "$CMD"
         sh -c "$CMD"
-        vendor/bin/dep run "find public/${dir}/ -type f ! -perm 660 -user ${SFTP_USER} -exec chmod 660 {} \;" "$[[ inputs.test_instance_name ]]" --no-interaction -vvv
-        vendor/bin/dep run "find public/${dir}/ -type d ! -perm 2770 -user ${SFTP_USER} -exec chmod 2770 {} \;" "$[[ inputs.test_instance_name ]]" --no-interaction -vvv
+        vendor/bin/dep run "find public/${dir}/ -type f ! -perm 660 -user ${SFTP_USER} -exec chmod 660 {} \;" "$[[ inputs.test_host_selector ]]" --no-interaction -vvv
+        vendor/bin/dep run "find public/${dir}/ -type d ! -perm 2770 -user ${SFTP_USER} -exec chmod 2770 {} \;" "$[[ inputs.test_host_selector ]]" --no-interaction -vvv
       done
   rules:
     - if: '"$[[ inputs.test_deploy_enabled ]]" != "true"'
