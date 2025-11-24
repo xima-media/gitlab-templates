@@ -51,10 +51,12 @@ spec:
       description: "Git reference for the release job. Defaults to the commit SHA."
     release_tag_name:
       type: string
-      description: "Tag name for the release job. Semver format required, e.g. 'v1.0.${CI_PIPELINE_IID}'"
+      description: "Tag name for the release job. Semver format required, e.g. 'v2.0.${CI_PIPELINE_IID}'"
+      default: "v2.0.${CI_PIPELINE_IID}"
     release_description:
       type: string
       description: "Description for the release job."
+      default: "v2.0.${CI_PIPELINE_IID}"
     # reset job variables
     reset_sync_dirs:
       type: string
