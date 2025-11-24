@@ -147,6 +147,7 @@ release:
     - echo '```diff' >> description.txt
     - echo "$DIFF" >> description.txt
     - echo '```' >> description.txt
+    - cat description.txt
   release:
     tag_name: $[[ inputs.release_tag_name ]]
     description: 'description.txt'
