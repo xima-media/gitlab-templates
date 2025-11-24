@@ -106,7 +106,7 @@ deploy-test:
     name: TEST
     url: $[[ inputs.test_environment_url ]]
     deployment_tier: testing
-  stage: deploy.postdev
+  stage: deploy.test
   extends: .deploy-prepare
   dependencies:
     - build-php
@@ -143,7 +143,7 @@ deploy-live:
     name: LIVE
     url: $[[ inputs.live_environment_url ]]
     deployment_tier: production
-  stage: deploy.postdev
+  stage: deploy.live
   extends: .deploy-prepare
   dependencies:
     - build-php
@@ -164,7 +164,7 @@ deploy-live-warmup:
   needs:
     - job: build-php
     - job: deploy-live
-  stage: deploy.postdev
+  stage: deploy.live
   extends: .deploy-prepare
   rules:
     - if: '"$[[ inputs.live_deploy_enabled ]]" != "true"'
