@@ -142,7 +142,14 @@ release:
   script:
     - 'echo "Creating release $[[ inputs.release_tag_name ]] for ref $[[ inputs.release_ref ]]"'
     - OLD_COMMIT_TAG="$(git tag | tail -2 | head -1)"
-    - echo "$(git range-diff $OLD_COMMIT_TAG...$CI_COMMIT_TAG)" > description.txt
+    - DIFF="$(git range-diff $OLD_COMMIT_TAG...$CI_COMMIT_TAG)"
+    - |
+      cat > description.txt <<EOF
+      ## Changes since $OLD_COMMIT_TAG
+      \`\`\`diff
+      $DIFF
+      \`\`\`
+      EOF
   release:
     tag_name: $[[ inputs.release_tag_name ]]
     description: 'description.txt'
