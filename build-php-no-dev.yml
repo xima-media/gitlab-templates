@@ -1,5 +1,5 @@
 build-php-no-dev:
-  stage: build
+  stage: docker.build
   cache:
     - key: 
         files: 
