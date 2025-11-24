@@ -65,10 +65,6 @@ spec:
       type: string
       description: "Tag name for the release job. Semver format required, e.g. 'v2.0.${CI_PIPELINE_IID}'"
       default: "v2.0.${CI_PIPELINE_IID}"
-    release_description:
-      type: string
-      description: "Description for the release job."
-      default: "v2.0.${CI_PIPELINE_IID}"
     # reset job variables
     reset_sync_dirs:
       type: string
@@ -145,9 +141,11 @@ release:
     - if: $CI_COMMIT_BRANCH == "main" && $CI_SERVER_URL == $XIMA_CI_SERVER_URL
   script:
     - 'echo "Creating release $[[ inputs.release_tag_name ]] for ref $[[ inputs.release_ref ]]"'
+    - OLD_COMMIT_TAG="$(git tag | tail -2 | head -1)"
+    - echo "$(git range-diff $OLD_COMMIT_TAG...$CI_COMMIT_TAG)" > description.txt
   release:
     tag_name: $[[ inputs.release_tag_name ]]
-    description: $[[ inputs.release_description ]]
+    description: 'description.txt'
     ref: $[[ inputs.release_ref ]]
 
 deploy-live:
