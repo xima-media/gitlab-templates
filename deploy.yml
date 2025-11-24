@@ -3,6 +3,18 @@
 
 # Integration example in importing gitlab-ci.yml:
 #
+# stages:
+#   - build
+#   - test
+#   - (docker.build)
+#   - deploy.dev
+#   - test.dev
+#   - deploy.test
+#   - test.test
+#   - release
+#   - deploy.live
+#   - test.live
+#
 # include:
 #   - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/refs/heads/deployment_jobs/deploy.yml'
 #     inputs:
