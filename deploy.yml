@@ -141,7 +141,7 @@ release:
     - if: $CI_COMMIT_BRANCH == "main" && $CI_SERVER_URL == $XIMA_CI_SERVER_URL
   script:
     - 'echo "Creating release $[[ inputs.release_tag_name ]] for ref $[[ inputs.release_ref ]]"'
-    - OLD_COMMIT_TAG="git describe --tags $(git rev-list --tags --max-count=1)"
+    - OLD_COMMIT_TAG="$(git describe --tags $(git rev-list --tags --max-count=1))"
     - DIFF="$(git range-diff $OLD_COMMIT_TAG...$CI_COMMIT_TAG)"
     - echo "Diff since last release tag ($OLD_COMMIT_TAG):" > description.txt
     - echo '```diff' >> description.txt
