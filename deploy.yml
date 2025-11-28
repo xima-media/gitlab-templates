@@ -205,7 +205,8 @@ deploy-live-warmup:
     - set -a && . ${RCLONE_RESET_STORAGE_ENV} && . ${RCLONE_RESET_CRYPT_ENV} && set +a
     - 'rclone config create --non-interactive --obscure ${CRYPT_NAME} crypt remote=storage:${CRYPT_DIR}/${CRYPT_NAME} filename_encoding=base64 password=${CRYPT_PASSWORD} password2=${CRYPT_PASSWORD2}'
 
-reset-upload:
+# Requires a scheduled job with RESET_JOB == true no RESET_HOST_SELECTOR set
+reset-upload-live:
   needs:
     - job: build-php
   stage: build
@@ -246,50 +247,48 @@ reset-upload:
       when: never
     - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
       when: never
-    - if: $RESET_JOB == "true"
+    - if: $RESET_JOB == "true" && $CI_PIPELINE_SOURCE == "schedule" && $RESET_HOST_SELECTOR == null
     - if: $CI_COMMIT_BRANCH == "main"
       when: manual
       allow_failure: true
 
-reset-test:
+# Requires a scheduled job with RESET_JOB == true and RESET_HOST_SELECTOR set with target host selector
+reset-host:
   needs:
     - job: build-php
-    - job: reset-upload
   stage: build
   extends: .deploy-prepare
   script:
     # install rclone and jq
     - apk add --update --quiet rclone jq && rclone version && jq --version
     # get ssh connection params from deploy.php
-    - SFTP_HOST=$(vendor/bin/dep config --format json $[[ inputs.test_host_selector ]] | jq -r '.[].hostname')
-    - SFTP_USER=$(vendor/bin/dep config --format json $[[ inputs.test_host_selector ]] | jq -r '.[].remote_user')
-    - DEPLOY_PATH=$(vendor/bin/dep config --format json $[[ inputs.test_host_selector ]] | jq -r '.[].deploy_path')
+    - SFTP_HOST=$(vendor/bin/dep config --format json ${RESET_HOST_SELECTOR} | jq -r '.[].hostname')
+    - SFTP_USER=$(vendor/bin/dep config --format json ${RESET_HOST_SELECTOR} | jq -r '.[].remote_user')
+    - DEPLOY_PATH=$(vendor/bin/dep config --format json ${RESET_HOST_SELECTOR} | jq -r '.[].deploy_path')
     # set up rclone remotes
     - !reference [.reset-prepare, script]
     # remove old dump on target
-    - vendor/bin/dep db:rmdump "$[[ inputs.test_host_selector ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:rmdump "${RESET_HOST_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
     # copy database from crypt remote to sftp remote
     - 'rclone copy -v --inplace --metadata "${CRYPT_NAME}:.dep/database/dumps/" "sftp:${DEPLOY_PATH}/.dep/database/dumps/"'
     # import database on target
-    - vendor/bin/dep db:decompress "$[[ inputs.test_host_selector ]]" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:process "$[[ inputs.test_host_selector ]]" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:import "$[[ inputs.test_host_selector ]]" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:rmdump "$[[ inputs.test_host_selector ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:decompress "${RESET_HOST_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:process "${RESET_HOST_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:import "${RESET_HOST_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:rmdump "${RESET_HOST_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
     # copy media files from crypt remote to sftp remote and fix file permissions
     - |
       for dir in $[[ inputs.reset_sync_dirs ]]; do
         CMD="rclone copy -v --inplace --metadata --no-update-modtime --no-update-dir-modtime --sftp-set-modtime=false --size-only \"${CRYPT_NAME}:shared/public/${dir}/\" \"sftp:${DEPLOY_PATH}/shared/public/${dir}/\""
         echo "$CMD"
         sh -c "$CMD"
-        vendor/bin/dep run "find public/${dir}/ -type f ! -perm 660 -user ${SFTP_USER} -exec chmod 660 {} \;" "$[[ inputs.test_host_selector ]]" --no-interaction -vvv
-        vendor/bin/dep run "find public/${dir}/ -type d ! -perm 2770 -user ${SFTP_USER} -exec chmod 2770 {} \;" "$[[ inputs.test_host_selector ]]" --no-interaction -vvv
+        vendor/bin/dep run "find public/${dir}/ -type f ! -perm 660 -user ${SFTP_USER} -exec chmod 660 {} \;" "${RESET_HOST_SELECTOR}" --no-interaction -vvv
+        vendor/bin/dep run "find public/${dir}/ -type d ! -perm 2770 -user ${SFTP_USER} -exec chmod 2770 {} \;" "${RESET_HOST_SELECTOR}" --no-interaction -vvv
       done
   rules:
-    - if: '"$[[ inputs.test_deploy_enabled ]]" != "true"'
-      when: never
     - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
       when: never
-    - if: '$RESET_JOB == "true" && "$[[ inputs.test_host_branch | expand_vars ]]" == "development"'
+    - if: $RESET_JOB == "true" && $CI_PIPELINE_SOURCE == "schedule" && $RESET_HOST_SELECTOR != null
     - if: $CI_COMMIT_BRANCH == "main"
       when: manual
       allow_failure: true
