@@ -4,50 +4,67 @@ Collection of reusable GitLab steps.
 
 ```yml
 include:
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/.deploy-prepare.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/build-php.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/build-node.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-composer-normalize.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-editorconfig-lint'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-composer-sitepackage.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-es-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-language-lint'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-html-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-php-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-php-cs-fixer.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-php-stan.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-php-unit.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-php-functional.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-typoscript-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-xml-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/test-yaml-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/.deploy-prepare.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/build-php.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/build-node.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-composer-normalize.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-editorconfig-lint'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-composer-sitepackage.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-es-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-language-lint'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-html-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-cs-fixer.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-stan.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-unit.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-functional.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-typoscript-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-yaml-lint.yml'
+  - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/deploy.yml'
+    inputs:
+      ci_server_url: https://git.example.com
+      live_environment_url: 'https://example.com/'
+      test_environment_url: 'https://test.example.com/'
 ```
 
-## Available jobs
+## Available jobs by stages
 
-### No stage
-* `.deploy-prepare.yml`
+* [No stage]
+  * `.deploy-prepare.yml`
 
-### Stage `build`
-* `build-php`
-* `build-php-v11`
-* `build-node` ⚠️ needs configuration
+* build
+  * `build-php`
+  * `build-php-v11`
+  * `build-node` ⚠️ needs configuration
+  * `reset-upload-live`
+  * `reset-host`
 
-### Stage `test`
-* `test-composer-normalize`
-* `test-editorconfig-lint`
-* `test-composer-sitepackage` ⚠️ needs configuration
-* `test-es-lint` ⚠️ needs configuration
-* `test-html-lint` ⚠️ needs configuration
-* `test-language-lint`
-* `test-php-lint`
-* `test-php-cs-fixer`
-* `test-php-stan`
-* `test-php-unit`
-* `test-php-functional`
-* `test-typoscript-lint`
-* `test-xml-lint`
-* `test-yaml-lint`
+* test
+  * `test-composer-normalize`
+  * `test-editorconfig-lint`
+  * `test-composer-sitepackage` ⚠️ needs configuration
+  * `test-es-lint` ⚠️ needs configuration
+  * `test-html-lint` ⚠️ needs configuration
+  * `test-language-lint`
+  * `test-php-lint`
+  * `test-php-cs-fixer`
+  * `test-php-stan`
+  * `test-php-unit`
+  * `test-php-functional`
+  * `test-typoscript-lint`
+  * `test-xml-lint` ⛔️ deprecated
+  * `test-yaml-lint`
+
+* docker.build
+* deploy.dev
+* test.dev
+* deploy.test
+  * `deploy-test`
+* test.test
+* release
+* deploy.live
+  * `deploy-live`
+* test.live
 
 ## Configure jobs
 
