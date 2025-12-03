@@ -1,0 +1,286 @@
+# Usage: This template is intended to be included in other GitLab CI/CD configuration files.
+# It defines post-development deployment and reset jobs that can be used in a CI/CD pipeline.
+
+# Integration example in importing gitlab-ci.yml:
+#
+# stages:
+#   - build
+#   - test
+#   - (docker.build)
+#   - deploy.dev
+#   - test.dev
+#   - deploy.test
+#   - test.test
+#   - release
+#   - deploy.live
+#   - test.live
+#
+# include:
+#   - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/refs/heads/deployment_jobs/deploy.yml'
+#     inputs:
+#       ci_server_url: https://gitlab.com/
+#       test_environment_url: https://test.example.org
+#       live_environment_url: https://www.example.org/
+
+spec:
+  inputs:
+    ci_server_url:
+      type: string
+      description: "URL of the CI server for post development deployments."
+    # deployment job variables
+    test_deploy_enabled:
+      type: boolean
+      default: true
+      description: "Whether to run the test deployment job and related jobs."
+    test_host_branch:
+      type: string
+      default: $TEST_HOST_BRANCH
+      description: "Branch to deploy to test environment."
+    test_host_selector:
+      type: string
+      default: "stage=test"
+      description: "Host selector for test deployment job."
+      regex: ^[a-zA-Z0-9_=]+$
+    test_environment_url:
+      type: string
+      description: "URL of the test environment."
+    live_deploy_enabled:
+      type: boolean
+      default: true
+      description: "Whether to run the live deployment and related jobs."
+    live_host_selector:
+      type: string
+      default: "stage=live"
+      description: "Host selector for live deployment job."
+      regex: ^[a-zA-Z0-9_=]+$
+    live_environment_url:
+      type: string
+      description: "URL of the live environment."
+    # release job variables
+    release_ref:
+      type: string
+      default: $CI_COMMIT_SHA
+      description: "Git reference for the release job. Defaults to the commit SHA."
+    release_tag_name:
+      type: string
+      description: "Tag name for the release job. Semver format required, e.g. 'v2.0.${CI_PIPELINE_IID}'"
+      default: "v2.0.${CI_PIPELINE_IID}"
+    # reset job variables
+    reset_sync_dirs:
+      type: string
+      default: "fileadmin uploads"
+      description: "Space separated list of directories in shared/public/ to sync from source to target environment."
+      regex: ^[a-zA-Z0-9_. -]+$
+    reset_sync_max_size:
+      type: string
+      default: "5M"
+      description: "Maximum file size to sync from source to target environment, e.g. 5M or 1G."
+      regex: ^[0-9]+[KMG]$
+    reset_sync_excludes:
+      type: array
+      default:
+        - '_processed_/**'
+        - '_recycler_/**'
+        - '_temp_/**'
+        - '*.mp4'
+        - '*.zip'
+        - '*.pdf'
+        - '*.exe'
+        - '*.doc'
+        - '*.docx'
+        - '*.pptx'
+        - '*.ppt'
+        - '*.xls'
+        - '*.xlsx'
+        - '*.xlsm'
+        - '*.tiff'
+        - '*.tif'
+        - '*.potx'
+        - '*.mpg'
+        - '*.mp3'
+        - '*.avi'
+        - '*.wmv'
+        - '*.flv'
+        - '*.eps'
+        - '*.ai'
+        - '*.mov'
+      description: "Array of rclone --exclude patterns for media file sync."
+
+---
+
+# Deployment jobs
+deploy-test:
+  environment:
+    name: TEST
+    url: $[[ inputs.test_environment_url ]]
+    deployment_tier: testing
+  stage: deploy.test
+  extends: .deploy-prepare
+  dependencies:
+    - build-php
+    - build-node
+  rules:
+    - if: '"$[[ inputs.test_deploy_enabled ]]" != "true"'
+      when: never
+    - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
+      when: never
+    - if: $RESET_JOB == "true"
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "$[[ inputs.test_host_branch | expand_vars ]]"'
+  script:
+    - vendor/bin/dep deploy:unlock $[[ inputs.test_host_selector ]] --branch=$CI_COMMIT_BRANCH -vvv
+    - vendor/bin/dep deploy-fast $[[ inputs.test_host_selector ]] --branch=$CI_COMMIT_BRANCH -vvv
+
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  dependencies: []
+  rules:
+    - if: $RESET_JOB == "true"
+      when: never
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_SERVER_URL == $XIMA_CI_SERVER_URL
+  script:
+    - 'echo "Creating release $[[ inputs.release_tag_name ]] for ref $[[ inputs.release_ref ]]"'
+    - OLD_COMMIT_TAG="$(git describe --tags $(git rev-list --tags --max-count=1))"
+    - DIFF="$(git range-diff $OLD_COMMIT_TAG...$CI_COMMIT_TAG)"
+    - echo "Diff since last release tag ($OLD_COMMIT_TAG):" > description.txt
+    - echo '```diff' >> description.txt
+    - echo "$DIFF" >> description.txt
+    - echo '```' >> description.txt
+    - cat description.txt
+  release:
+    tag_name: $[[ inputs.release_tag_name ]]
+    description: 'description.txt'
+    ref: $[[ inputs.release_ref ]]
+
+deploy-live:
+  environment:
+    name: LIVE
+    url: $[[ inputs.live_environment_url ]]
+    deployment_tier: production
+  stage: deploy.live
+  extends: .deploy-prepare
+  dependencies:
+    - build-php
+    - build-node
+  rules:
+    - if: '"$[[ inputs.live_deploy_enabled ]]" != "true"'
+      when: never
+    - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
+      when: never
+    - if: $RESET_JOB == "true"
+      when: never
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+  script:
+    - vendor/bin/dep deploy:unlock $[[ inputs.live_host_selector ]]
+    - vendor/bin/dep deploy $[[ inputs.live_host_selector ]] -vvv
+
+deploy-live-warmup:
+  needs:
+    - job: build-php
+    - job: deploy-live
+  stage: deploy.live
+  extends: .deploy-prepare
+  rules:
+    - if: '"$[[ inputs.live_deploy_enabled ]]" != "true"'
+      when: never
+    - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
+      when: never
+    - if: $RESET_JOB == "true"
+      when: never
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+  script:
+    - vendor/bin/dep deploy:cache:warmup $[[ inputs.live_host_selector ]] -vvv
+
+
+# Reset jobs
+
+.reset-prepare:
+  script:
+    # ensure RCLONE_RESET_STORAGE_ENV and RCLONE_RESET_CRYPT_ENV file variables are set
+    - 'if [ ! -f "${RCLONE_RESET_STORAGE_ENV}" ] || [ ! -f "${RCLONE_RESET_CRYPT_ENV}" ]; then echo "RCLONE_RESET_STORAGE_ENV and RCLONE_RESET_CRYPT_ENV must be set as CI/CD file variables!"; exit 1; fi'
+    # configure sftp remote
+    - rclone config create --non-interactive sftp sftp host=${SFTP_HOST} user=${SFTP_USER} port=22 key_use_agent=true
+    # configure crypt remote
+    - set -a && . ${RCLONE_RESET_STORAGE_ENV} && . ${RCLONE_RESET_CRYPT_ENV} && set +a
+    - 'rclone config create --non-interactive --obscure ${CRYPT_NAME} crypt remote=storage:${CRYPT_DIR}/${CRYPT_NAME} filename_encoding=base64 password=${CRYPT_PASSWORD} password2=${CRYPT_PASSWORD2}'
+
+# Requires a scheduled job with RESET_JOB == true no RESET_HOST_SELECTOR set
+reset-upload-live:
+  needs:
+    - job: build-php
+  stage: build
+  extends: .deploy-prepare
+  variables:
+  script:
+    # install rclone and jq
+    - apk add --update --quiet rclone jq && rclone version && jq --version
+    # get ssh connection params from deploy.php
+    - SFTP_HOST=$(vendor/bin/dep config --format json $[[ inputs.live_host_selector ]] | jq -r '.[].hostname')
+    - SFTP_USER=$(vendor/bin/dep config --format json $[[ inputs.live_host_selector ]] | jq -r '.[].remote_user')
+    - DEPLOY_PATH=$(vendor/bin/dep config --format json $[[ inputs.live_host_selector ]] | jq -r '.[].deploy_path')
+    # set up rclone remotes
+    - !reference [.reset-prepare, script]
+    # dump database on source
+    - vendor/bin/dep db:rmdump "$[[ inputs.live_host_selector ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:export "$[[ inputs.live_host_selector ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:process "$[[ inputs.live_host_selector ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:compress "$[[ inputs.live_host_selector ]]" --options=dumpcode:resetJob --no-interaction -vvv
+    # sync database from sftp remote to crypt remote
+    - 'rclone sync -v --inplace --metadata --include "*dumpcode=resetJob*" --delete-excluded "sftp:${DEPLOY_PATH}/.dep/database/dumps/" ${CRYPT_NAME}:.dep/database/dumps'
+    # prepare exclude args for rclone
+    - |
+      EXCLUDE_ARGS=""
+      for pattern in $(echo '$[[ inputs.reset_sync_excludes ]]' | jq -r '.[]'); do
+        EXCLUDE_ARGS="$EXCLUDE_ARGS --exclude \"$pattern\""
+      done
+      echo "Prepared rclone exclude args: $EXCLUDE_ARGS"
+    # sync media files from sftp to crypt remote with applied filters
+    - |
+      for dir in $[[ inputs.reset_sync_dirs ]]; do
+        CMD="rclone sync -v --inplace --metadata --size-only \"sftp:${DEPLOY_PATH}/shared/public/${dir}/\" \"${CRYPT_NAME}:shared/public/${dir}/\" --max-size=\"$[[ inputs.reset_sync_max_size ]]\" --delete-excluded $EXCLUDE_ARGS"
+        echo "$CMD"
+        sh -c "$CMD"
+      done
+  rules:
+    - if: '"$[[ inputs.live_deploy_enabled ]]" != "true"'
+      when: never
+    - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
+      when: never
+    - if: $RESET_JOB == "true" && $CI_PIPELINE_SOURCE == "schedule" && $RESET_HOST_SELECTOR == null
+
+# Requires a scheduled job with RESET_JOB == true and RESET_HOST_SELECTOR set with target host selector
+reset-host:
+  needs:
+    - job: build-php
+  stage: build
+  extends: .deploy-prepare
+  script:
+    # install rclone and jq
+    - apk add --update --quiet rclone jq && rclone version && jq --version
+    # get ssh connection params from deploy.php
+    - SFTP_HOST=$(vendor/bin/dep config --format json ${RESET_HOST_SELECTOR} | jq -r '.[].hostname')
+    - SFTP_USER=$(vendor/bin/dep config --format json ${RESET_HOST_SELECTOR} | jq -r '.[].remote_user')
+    - DEPLOY_PATH=$(vendor/bin/dep config --format json ${RESET_HOST_SELECTOR} | jq -r '.[].deploy_path')
+    # set up rclone remotes
+    - !reference [.reset-prepare, script]
+    # remove old dump on target
+    - vendor/bin/dep db:rmdump "${RESET_HOST_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    # copy database from crypt remote to sftp remote
+    - 'rclone copy -v --inplace --metadata "${CRYPT_NAME}:.dep/database/dumps/" "sftp:${DEPLOY_PATH}/.dep/database/dumps/"'
+    # import database on target
+    - vendor/bin/dep db:decompress "${RESET_HOST_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:process "${RESET_HOST_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:import "${RESET_HOST_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:rmdump "${RESET_HOST_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    # copy media files from crypt remote to sftp remote and fix file permissions
+    - |
+      for dir in $[[ inputs.reset_sync_dirs ]]; do
+        CMD="rclone copy -v --inplace --metadata --no-update-modtime --no-update-dir-modtime --sftp-set-modtime=false --size-only \"${CRYPT_NAME}:shared/public/${dir}/\" \"sftp:${DEPLOY_PATH}/shared/public/${dir}/\""
+        echo "$CMD"
+        sh -c "$CMD"
+        vendor/bin/dep run "find public/${dir}/ -type f ! -perm 660 -user ${SFTP_USER} -exec chmod 660 {} \;" "${RESET_HOST_SELECTOR}" --no-interaction -vvv
+        vendor/bin/dep run "find public/${dir}/ -type d ! -perm 2770 -user ${SFTP_USER} -exec chmod 2770 {} \;" "${RESET_HOST_SELECTOR}" --no-interaction -vvv
+      done
+  rules:
+    - if: $RESET_JOB == "true" && $CI_PIPELINE_SOURCE == "schedule" && $RESET_HOST_SELECTOR != null
