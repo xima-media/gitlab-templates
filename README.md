@@ -34,6 +34,7 @@ include:
 
 * build
   * `build-php`
+  * `build-php-no-dev`
   * `build-php-v11`
   * `build-node` ⚠️ needs configuration
   * `reset-upload-live`
@@ -125,3 +126,6 @@ test-html-lint:
   image:
     name: node:18.17.1-slim
 ```
+
+## Configure schedules
+
