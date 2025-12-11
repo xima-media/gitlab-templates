@@ -127,5 +127,37 @@ test-html-lint:
     name: node:18.17.1-slim
 ```
 
-## Configure schedules
+## Configure Reset jobs
 
+Reset jobs are useful for syncing assets and databases between environments. [Rclone](https://rclone.org/) supports various cloud storage providers and [crypt remotes](https://rclone.org/crypt/) for client-side encryption.
+
+Defaults for deployer host selectors, synced directories, file types and sizes are set - see input specs.
+
+Jobs:
+* `reset-upload-live`: Upload data from live instance to rclone storage. ⚠️ needs configuration
+* `reset-host`: Import data from rclone storage. ⚠️ needs configuration
+
+Requires Gitlab CI/CD **file variables** in project settings:
+* `RCLONE_RESET_STORAGE_ENV`: Configuration of rclone remote where data is stored.
+* `RCLONE_RESET_CRYPT_ENV`: Configuration of rclone crypt remote for client-side encryption.
+
+*RCLONE_RESET_STORAGE_ENV*
+```bash
+# Rclone configuration with environment variables for access to S3 remote: https://rclone.org/docs/#config-file and https://rclone.org/s3/
+RCLONE_CONFIG_STORAGE_TYPE=s3
+RCLONE_CONFIG_STORAGE_PROVIDER=AWS
+RCLONE_CONFIG_STORAGE_ACCESS_KEY_ID=<secret>
+RCLONE_CONFIG_STORAGE_SECRET_ACCESS_KEY=<secret>
+RCLONE_CONFIG_STORAGE_ENDPOINT=eu-central-1
+RCLONE_CONFIG_STORAGE_REGION=EU
+RCLONE_CONFIG_STORAGE_ACL=private
+```
+
+*RCLONE_RESET_CRYPT_ENV*
+```bash
+# The crypt remote is created within the 'storage' remote. Environment variables are NOT used directly by rclone, but the CI script for automated setup. For variable reference see https://rclone.org/crypt/.
+CRYPT_DIR=<bucket name in storage remote>
+CRYPT_NAME=${CI_PROJECT_NAME}                   # "Expand variable reference" in CI settings required
+CRYPT_PASSWORD=<secret>
+CRYPT_PASSWORD2=<secret>
+```
