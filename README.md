@@ -37,8 +37,8 @@ include:
   * `build-php-no-dev`
   * `build-php-v11`
   * `build-node` ⚠️ needs configuration
-  * `reset-upload-live`
-  * `reset-host`
+  * `reset-upload-live` ⚠️ needs configuration
+  * `reset-host` ⚠️ needs configuration
 
 * test
   * `test-composer-normalize`
@@ -133,17 +133,14 @@ Reset jobs are useful for syncing assets and databases between environments. [Rc
 
 Defaults for deployer host selectors, synced directories, file types and sizes are set - see input specs.
 
-Jobs:
-* `reset-upload-live`: Upload data from live instance to rclone storage. ⚠️ needs configuration
-* `reset-host`: Import data from rclone storage. ⚠️ needs configuration
-
 Requires Gitlab CI/CD **file variables** in project settings:
 * `RCLONE_RESET_STORAGE_ENV`: Configuration of rclone remote where data is stored.
 * `RCLONE_RESET_CRYPT_ENV`: Configuration of rclone crypt remote for client-side encryption.
 
 *RCLONE_RESET_STORAGE_ENV*
 ```bash
-# Rclone configuration with environment variables for access to S3 remote: https://rclone.org/docs/#config-file and https://rclone.org/s3/
+# Rclone configuration with environment variables for access
+# to S3 remote: https://rclone.org/docs/#config-file and https://rclone.org/s3/
 RCLONE_CONFIG_STORAGE_TYPE=s3
 RCLONE_CONFIG_STORAGE_PROVIDER=AWS
 RCLONE_CONFIG_STORAGE_ACCESS_KEY_ID=<secret>
@@ -155,24 +152,23 @@ RCLONE_CONFIG_STORAGE_ACL=private
 
 *RCLONE_RESET_CRYPT_ENV*
 ```bash
-# The crypt remote is created within the 'storage' remote. Environment variables are NOT used directly by rclone, but the CI script for automated setup. For variable reference see https://rclone.org/crypt/.
+# The crypt remote is created within the 'storage' remote.
+# Environment variables are NOT used directly by rclone, but the CI script for automated setup.
+# For variable reference see https://rclone.org/crypt/
 CRYPT_DIR=<bucket name in storage remote>
-CRYPT_NAME=${CI_PROJECT_NAME}                   # "Expand variable reference" in CI settings required
+# "Expand variable reference" in CI settings required
+CRYPT_NAME=${CI_PROJECT_NAME}
 CRYPT_PASSWORD=<secret>
 CRYPT_PASSWORD2=<secret>
 ```
 
 Gitlab CI schedules can then be set as follows:
-```yaml
-- name: Upload data from live instance
-  interval:
-    0 14 * * 0
-  variable:
-    RESET_JOB == "true"
-- name: Reset test instance from live data
-  interval:
-    0 15 * * 0
-  variable:
-    RESET_JOB == "true"
-    RESET_HOST_SELECTOR == "stage=test"
-```
+* Name: 'Upload data from live instance'
+  * Cron: '0 14 * * 0'
+  * Variables:
+    * RESET_JOB == "true"
+* Name: 'Reset test instance from live data'
+  * Cron: '0 15 * * 0'
+  * Variables:
+    * RESET_JOB == "true"
+    * RESET_HOST_SELECTOR == "stage=test"
