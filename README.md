@@ -161,3 +161,18 @@ CRYPT_NAME=${CI_PROJECT_NAME}                   # "Expand variable reference" in
 CRYPT_PASSWORD=<secret>
 CRYPT_PASSWORD2=<secret>
 ```
+
+Gitlab CI schedules can then be set as follows:
+```yaml
+- name: Upload data from live instance
+  interval:
+    0 14 * * 0
+  variable:
+    RESET_JOB == "true"
+- name: Reset test instance from live data
+  interval:
+    0 15 * * 0
+  variable:
+    RESET_JOB == "true"
+    RESET_HOST_SELECTOR == "stage=test"
+```
