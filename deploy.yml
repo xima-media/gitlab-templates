@@ -247,7 +247,7 @@ reset-upload-live:
       when: never
     - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
       when: never
-    - if: $RESET_JOB == "true" && $CI_PIPELINE_SOURCE == "schedule" && $RESET_HOST_SELECTOR == null
+    - if: $RESET_JOB == "true" && $RESET_HOST_SELECTOR == null
 
 # Requires a scheduled job with RESET_JOB == true and RESET_HOST_SELECTOR set with target host selector
 reset-host:
@@ -283,4 +283,4 @@ reset-host:
         vendor/bin/dep run "find public/${dir}/ -type d ! -perm 2770 -user ${SFTP_USER} -exec chmod 2770 {} \;" "${RESET_HOST_SELECTOR}" --no-interaction -vvv
       done
   rules:
-    - if: $RESET_JOB == "true" && $CI_PIPELINE_SOURCE == "schedule" && $RESET_HOST_SELECTOR != null
+    - if: $RESET_JOB == "true" && $RESET_HOST_SELECTOR != null
