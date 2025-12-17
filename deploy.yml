@@ -142,8 +142,8 @@ release:
   rules:
     - if: $RESET_JOB == "true"
       when: never
-    - if: '$CI_COMMIT_BRANCH == "main" && $CI_SERVER_URL == $XIMA_CI_SERVER_URL && $[[ inputs.release_manual ]] == false'
-    - if: '$CI_COMMIT_BRANCH == "main" && $CI_SERVER_URL == $XIMA_CI_SERVER_URL && $[[ inputs.release_manual ]] == true'
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_SERVER_URL == $XIMA_CI_SERVER_URL && "$[[ inputs.release_manual ]]" == "false"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_SERVER_URL == $XIMA_CI_SERVER_URL && "$[[ inputs.release_manual ]]" == "true"'
       when: manual
   script:
     - 'echo "Creating release $[[ inputs.release_tag_name ]] for ref $[[ inputs.release_ref ]]"'
