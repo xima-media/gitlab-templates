@@ -57,10 +57,10 @@ spec:
       type: string
       description: "URL of the live environment."
     # release job variables
-    release_manual:
+    release_auto:
       type: boolean
-      default: false
-      description: "Whether to run the release job manually."
+      default: true
+      description: "Whether to run the release job automatically."
     release_ref:
       type: string
       default: $CI_COMMIT_SHA
@@ -142,8 +142,8 @@ release:
   rules:
     - if: $RESET_JOB == "true"
       when: never
-    - if: '$CI_COMMIT_BRANCH == "main" && $CI_SERVER_URL == $XIMA_CI_SERVER_URL && "$[[ inputs.release_manual ]]" == "false"'
-    - if: '$CI_COMMIT_BRANCH == "main" && $CI_SERVER_URL == $XIMA_CI_SERVER_URL && "$[[ inputs.release_manual ]]" == "true"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_SERVER_URL == $XIMA_CI_SERVER_URL && "$[[ inputs.release_auto ]]" == "true"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_SERVER_URL == $XIMA_CI_SERVER_URL && "$[[ inputs.release_auto ]]" == "false"'
       when: manual
   script:
     - 'echo "Creating release $[[ inputs.release_tag_name ]] for ref $[[ inputs.release_ref ]]"'
