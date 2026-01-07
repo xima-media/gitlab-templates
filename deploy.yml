@@ -251,8 +251,6 @@ reset-upload-live:
         sh -c "$CMD"
       done
   rules:
-    - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
-      when: never
     - if: $RESET_JOB == "true" && $RESET_HOST_SELECTOR == null
 
 # Requires a scheduled job with RESET_JOB == true and RESET_HOST_SELECTOR set with target host selector
