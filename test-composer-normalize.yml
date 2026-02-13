@@ -1,6 +1,8 @@
 test-composer-normalize:
   stage: test
   needs: ["build-php"]
+  inherit:
+    variables: false
   script:
     - composer run ci:composer:normalize
   rules:

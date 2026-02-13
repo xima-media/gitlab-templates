@@ -1,6 +1,8 @@
 test-xml-lint:
   stage: test
   needs: [ "build-php" ]
+  inherit:
+    variables: false
   script:
     - apk add --update --no-cache libxml2-utils
     - composer run ci:xml:lint

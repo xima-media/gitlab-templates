@@ -1,6 +1,8 @@
 test-editorconfig-lint:
   stage: test
   needs: [ "build-php" ]
+  inherit:
+    variables: false
   script:
     - composer run ci:editorconfig:lint
   rules:

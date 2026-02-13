@@ -1,6 +1,8 @@
 test-typescript-lint:
   stage: test
   needs: [ "build-node" ]
+  inherit:
+    variables: false
   script:
     - npm run ts:lint
   rules:
