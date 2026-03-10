@@ -72,7 +72,6 @@ spec:
 
 ---
 
-# Deployment jobs
 deploy-test:
   environment:
     name: TEST
