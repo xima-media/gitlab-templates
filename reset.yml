@@ -61,8 +61,8 @@ spec:
     - set -a && . ${RCLONE_RESET_STORAGE_ENV} && set +a
     - 'rclone config create --non-interactive --obscure ${CRYPT_NAME} crypt remote=${CRYPT_REMOTE} filename_encoding=base64 password=${CRYPT_PASSWORD} password2=${CRYPT_PASSWORD2}'
 
-# Requires a scheduled job with RESET_JOB == true no RESET_HOST_SELECTOR set
-reset-upload-live:
+# Requires a scheduled job with RESET_JOB == true no RESET_DOWNLOAD_TARGET_SELECTOR set
+reset-upload-source:
   needs:
     - job: build-php
   stage: build
@@ -70,20 +70,20 @@ reset-upload-live:
   variables:
   script:
     # use "stage=live" as default if not defined
-    - RESET_UPLOAD_SELECTOR="${RESET_UPLOAD_SELECTOR:-stage=live}"
+    - RESET_UPLOAD_SOURCE_SELECTOR="${RESET_UPLOAD_SOURCE_SELECTOR:-stage=live}"
     # install rclone and jq
     - apk add --update --quiet rclone jq && rclone version && jq --version
     # get ssh connection params from deploy.php
-    - SFTP_HOST=$(vendor/bin/dep config --format json ${RESET_UPLOAD_SELECTOR} | jq -r '.[].hostname')
-    - SFTP_USER=$(vendor/bin/dep config --format json ${RESET_UPLOAD_SELECTOR} | jq -r '.[].remote_user')
-    - DEPLOY_PATH=$(vendor/bin/dep config --format json ${RESET_UPLOAD_SELECTOR} | jq -r '.[].deploy_path')
+    - SFTP_HOST=$(vendor/bin/dep config --format json ${RESET_UPLOAD_SOURCE_SELECTOR} | jq -r '.[].hostname')
+    - SFTP_USER=$(vendor/bin/dep config --format json ${RESET_UPLOAD_SOURCE_SELECTOR} | jq -r '.[].remote_user')
+    - DEPLOY_PATH=$(vendor/bin/dep config --format json ${RESET_UPLOAD_SOURCE_SELECTOR} | jq -r '.[].deploy_path')
     # set up rclone remotes
     - !reference [.reset-prepare, script]
     # dump database on source
-    - vendor/bin/dep db:rmdump "${RESET_UPLOAD_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:export "${RESET_UPLOAD_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:process "${RESET_UPLOAD_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:compress "${RESET_UPLOAD_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:rmdump "${RESET_UPLOAD_SOURCE_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:export "${RESET_UPLOAD_SOURCE_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:process "${RESET_UPLOAD_SOURCE_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:compress "${RESET_UPLOAD_SOURCE_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
     # sync database from sftp remote to crypt remote
     - 'rclone sync -v --inplace --metadata --include "*dumpcode=resetJob*" --delete-excluded "sftp:${DEPLOY_PATH}/.dep/database/dumps/" ${CRYPT_NAME}:.dep/database/dumps'
     # prepare exclude args for rclone
@@ -101,10 +101,10 @@ reset-upload-live:
         sh -c "$CMD"
       done
   rules:
-    - if: $RESET_JOB == "true" && $RESET_HOST_SELECTOR == null
+    - if: $RESET_JOB == "true" && $RESET_DOWNLOAD_TARGET_SELECTOR == null
 
-# Requires a scheduled job with RESET_JOB == true and RESET_HOST_SELECTOR set with target host selector
-reset-host:
+# Requires a scheduled job with RESET_JOB == true and RESET_DOWNLOAD_TARGET_SELECTOR set with target host selector
+reset-download-target:
   needs:
     - job: build-php
   stage: build
@@ -113,28 +113,28 @@ reset-host:
     # install rclone and jq
     - apk add --update --quiet rclone jq && rclone version && jq --version
     # get ssh connection params from deploy.php
-    - SFTP_HOST=$(vendor/bin/dep config --format json ${RESET_HOST_SELECTOR} | jq -r '.[].hostname')
-    - SFTP_USER=$(vendor/bin/dep config --format json ${RESET_HOST_SELECTOR} | jq -r '.[].remote_user')
-    - DEPLOY_PATH=$(vendor/bin/dep config --format json ${RESET_HOST_SELECTOR} | jq -r '.[].deploy_path')
+    - SFTP_HOST=$(vendor/bin/dep config --format json ${RESET_DOWNLOAD_TARGET_SELECTOR} | jq -r '.[].hostname')
+    - SFTP_USER=$(vendor/bin/dep config --format json ${RESET_DOWNLOAD_TARGET_SELECTOR} | jq -r '.[].remote_user')
+    - DEPLOY_PATH=$(vendor/bin/dep config --format json ${RESET_DOWNLOAD_TARGET_SELECTOR} | jq -r '.[].deploy_path')
     # set up rclone remotes
     - !reference [.reset-prepare, script]
     # remove old dump on target
-    - vendor/bin/dep db:rmdump "${RESET_HOST_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:rmdump "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
     # copy database from crypt remote to sftp remote
     - 'rclone copy -v --inplace --metadata "${CRYPT_NAME}:.dep/database/dumps/" "sftp:${DEPLOY_PATH}/.dep/database/dumps/"'
     # import database on target
-    - vendor/bin/dep db:decompress "${RESET_HOST_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:process "${RESET_HOST_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:import "${RESET_HOST_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:rmdump "${RESET_HOST_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:decompress "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:process "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:import "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:rmdump "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
     # copy media files from crypt remote to sftp remote and fix file permissions
     - |
       for dir in $[[ inputs.reset_sync_dirs ]]; do
         CMD="rclone copy -v --inplace --metadata --no-update-modtime --no-update-dir-modtime --sftp-set-modtime=false --size-only \"${CRYPT_NAME}:shared/public/${dir}/\" \"sftp:${DEPLOY_PATH}/shared/public/${dir}/\""
         echo "$CMD"
         sh -c "$CMD"
-        vendor/bin/dep run "find public/${dir}/ -type f ! -perm 660 -user ${SFTP_USER} -exec chmod 660 {} \;" "${RESET_HOST_SELECTOR}" --no-interaction -vvv
-        vendor/bin/dep run "find public/${dir}/ -type d ! -perm 2770 -user ${SFTP_USER} -exec chmod 2770 {} \;" "${RESET_HOST_SELECTOR}" --no-interaction -vvv
+        vendor/bin/dep run "find public/${dir}/ -type f ! -perm 660 -user ${SFTP_USER} -exec chmod 660 {} \;" "${RESET_DOWNLOAD_TARGET_SELECTOR}" --no-interaction -vvv
+        vendor/bin/dep run "find public/${dir}/ -type d ! -perm 2770 -user ${SFTP_USER} -exec chmod 2770 {} \;" "${RESET_DOWNLOAD_TARGET_SELECTOR}" --no-interaction -vvv
       done
   rules:
-    - if: $RESET_JOB == "true" && $RESET_HOST_SELECTOR != null
+    - if: $RESET_JOB == "true" && $RESET_DOWNLOAD_TARGET_SELECTOR != null

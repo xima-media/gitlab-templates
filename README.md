@@ -37,8 +37,8 @@ include:
   * `build-php-no-dev`
   * `build-php-v11`
   * `build-node` ⚠️ needs configuration
-  * `reset-upload-live` ⚠️ needs configuration
-  * `reset-host` ⚠️ needs configuration
+  * `reset-upload-source` ⚠️ needs configuration
+  * `reset-download-target` ⚠️ needs configuration
 
 * test
   * `test-composer-normalize`
@@ -156,14 +156,14 @@ CRYPT_PASSWORD2=<secret>
 
 Notes about variables:
 * **RESET_JOB** == "*true*" must always be set to indicate this is a reset job
-* **RESET_UPLOAD_SELECTOR** and **RESET_HOST_SELECTOR** can match host names or labels defined in deploy.php:
-  * RESET_UPLOAD_SELECTOR == *'hostname'*
-  * RESET_HOST_SELECTOR == *'label=value'*
+* **RESET_UPLOAD_SOURCE_SELECTOR** and **RESET_DOWNLOAD_TARGET_SELECTOR** can match host names or labels defined in deploy.php:
+  * RESET_UPLOAD_SOURCE_SELECTOR == *'hostname'*
+  * RESET_DOWNLOAD_TARGET_SELECTOR == *'label=value'*
 
 Default behaviour:
-* `RESET_JOB == "true"` -> triggers **reset-upload-live** with RESET_UPLOAD_SELECTOR == *stage=live.*
-* `RESET_JOB == "true" && RESET_HOST_SELECTOR == '<selector>'` -> triggers **reset-host** for *selector*
-* `RESET_JOB == "true" && RESET_UPLOAD_SELECTOR == 'xyz'` -> triggers **reset-upload-live** for host *xyz*
+* `RESET_JOB == "true"` -> triggers **reset-upload-source** with RESET_UPLOAD_SOURCE_SELECTOR == *stage=live.*
+* `RESET_JOB == "true" && RESET_DOWNLOAD_TARGET_SELECTOR == '<selector>'` -> triggers **reset-download-target** for *selector*
+* `RESET_JOB == "true" && RESET_UPLOAD_SOURCE_SELECTOR == 'xyz'` -> triggers **reset-upload-source** for host *xyz*
 
 Gitlab CI schedules for periodic resets then be set as follows:
 * Name: 'Upload data from live instance(s) in deploy.php'
@@ -174,10 +174,10 @@ Gitlab CI schedules for periodic resets then be set as follows:
   * Cron: '0 15 * * 0'
   * Variables:
     * RESET_JOB == "true"
-    * RESET_HOST_SELECTOR == "stage=test"
+    * RESET_DOWNLOAD_TARGET_SELECTOR == "stage=test"
 
 These jobs can also be triggered manually from a pipeline via Gitlab UI using the same variables:
 * Manually upload data from host 'xyz' in deploy.php
   * Variables:
     * RESET_JOB == "true"
-    * RESET_UPLOAD_SELECTOR == "xyz"
+    * RESET_UPLOAD_SOURCE_SELECTOR == "xyz"
