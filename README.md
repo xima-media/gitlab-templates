@@ -154,13 +154,30 @@ CRYPT_PASSWORD=<secret>
 CRYPT_PASSWORD2=<secret>
 ```
 
-Gitlab CI schedules can then be set as follows:
-* Name: 'Upload data from live instance'
+Notes about variables:
+* **RESET_JOB** == "*true*" must always be set to indicate this is a reset job
+* **RESET_UPLOAD_SELECTOR** and **RESET_HOST_SELECTOR** can match host names or labels defined in deploy.php:
+  * RESET_UPLOAD_SELECTOR == *'hostname'*
+  * RESET_HOST_SELECTOR == *'label=value'*
+
+Default behaviour:
+* `RESET_JOB == "true"` -> triggers **reset-upload-live** with RESET_UPLOAD_SELECTOR == *stage=live.*
+* `RESET_JOB == "true" && RESET_HOST_SELECTOR == '<selector>'` -> triggers **reset-host** for *selector*
+* `RESET_JOB == "true" && RESET_UPLOAD_SELECTOR == 'xyz'` -> triggers **reset-upload-live** for host *xyz*
+
+Gitlab CI schedules for periodic resets then be set as follows:
+* Name: 'Upload data from live instance(s) in deploy.php'
   * Cron: '0 14 * * 0'
   * Variables:
     * RESET_JOB == "true"
-* Name: 'Reset test instance from live data'
+* Name: 'Reset test instance(s) in deploy.php to previously uploaded data'
   * Cron: '0 15 * * 0'
   * Variables:
     * RESET_JOB == "true"
     * RESET_HOST_SELECTOR == "stage=test"
+
+These jobs can also be triggered manually from a pipeline via Gitlab UI using the same variables:
+* Manually upload data from host 'xyz' in deploy.php
+  * Variables:
+    * RESET_JOB == "true"
+    * RESET_UPLOAD_SELECTOR == "xyz"
