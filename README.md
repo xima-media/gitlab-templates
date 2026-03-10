@@ -129,12 +129,18 @@ test-html-lint:
 
 ## Configure Reset jobs
 
-Reset jobs are useful for syncing assets and databases between environments. [Rclone](https://rclone.org/) supports various cloud storage providers and [crypt remotes](https://rclone.org/crypt/) for client-side encryption.
+Reset jobs are useful for syncing assets and databases between environments.
 
-Defaults for deployer host selectors, synced directories, file types and sizes are set - see input specs.
+[Rclone](https://rclone.org/) supports various storage providers to accomplish that:
+- [S3 remote](https://rclone.org/s3/) for file storage
+- [CRYPT remote](https://rclone.org/crypt/) for client-side encryption to S3 remote
+- [SFTP remote](https://rclone.org/sftp/) for synchronisation with SSH hosts.
 
-Requires Gitlab CI/CD **file variable** in project settings:
-* `RCLONE_RESET_STORAGE_ENV`
+### Prerequisites
+
+* PHP Deployer deploy.php with SSH hosts
+* S3 storage provider
+* Gitlab **file variable** in project settings: `RCLONE_RESET_STORAGE_ENV`
 
 *RCLONE_RESET_STORAGE_ENV*
 ```bash
@@ -147,12 +153,17 @@ RCLONE_CONFIG_STORAGE_ENDPOINT=eu-central-1
 RCLONE_CONFIG_STORAGE_REGION=EU
 RCLONE_CONFIG_STORAGE_ACL=private
 # Crypt remote for client-side encryption is created on the fly from these variables in *.reset-prepare* job
-# GitLab CI/CD variable must be disabled!
+# GitLab CI/CD variable expansion must be disabled!
 CRYPT_NAME=<crypt_name>
 CRYPT_REMOTE="storage:<s3-bucket-name>/${CRYPT_NAME}"
 CRYPT_PASSWORD=<secret>
 CRYPT_PASSWORD2=<secret>
 ```
+
+### Defaults
+
+- Configurable defaults for synced directories, file types and sizes are set in input specs of [reset.yml](reset.yml).
+- RESET_UPLOAD_SOURCE_SELECTOR defaults to *stage=live*.
 
 Notes about variables:
 * **RESET_JOB** == "*true*" must always be set to indicate this is a reset job
@@ -161,11 +172,13 @@ Notes about variables:
   * RESET_DOWNLOAD_TARGET_SELECTOR == *'label=value'*
 
 Default behaviour:
-* `RESET_JOB == "true"` -> triggers **reset-upload-source** with RESET_UPLOAD_SOURCE_SELECTOR == *stage=live.*
+* `RESET_JOB == "true"` -> triggers **reset-upload-source** with RESET_UPLOAD_SOURCE_SELECTOR == *stage=live*
 * `RESET_JOB == "true" && RESET_DOWNLOAD_TARGET_SELECTOR == '<selector>'` -> triggers **reset-download-target** for *selector*
 * `RESET_JOB == "true" && RESET_UPLOAD_SOURCE_SELECTOR == 'xyz'` -> triggers **reset-upload-source** for host *xyz*
 
-Gitlab CI schedules for periodic resets then be set as follows:
+### Usage
+
+Gitlab CI schedules for periodic resets are set as follows:
 * Name: 'Upload data from live instance(s) in deploy.php'
   * Cron: '0 14 * * 0'
   * Variables:
@@ -176,7 +189,7 @@ Gitlab CI schedules for periodic resets then be set as follows:
     * RESET_JOB == "true"
     * RESET_DOWNLOAD_TARGET_SELECTOR == "stage=test"
 
-These jobs can also be triggered manually from a pipeline via Gitlab UI using the same variables:
+Jobs can be triggered manually from a pipeline using Gitlab UI with the same variables:
 * Manually upload data from host 'xyz' in deploy.php
   * Variables:
     * RESET_JOB == "true"
