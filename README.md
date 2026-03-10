@@ -37,8 +37,8 @@ include:
   * `build-php-no-dev`
   * `build-php-v11`
   * `build-node` ⚠️ needs configuration
-  * `reset-upload-live`
-  * `reset-host`
+  * `reset-upload-live` ⚠️ needs configuration
+  * `reset-host` ⚠️ needs configuration
 
 * test
   * `test-composer-normalize`
@@ -127,5 +127,40 @@ test-html-lint:
     name: node:18.17.1-slim
 ```
 
-## Configure schedules
+## Configure Reset jobs
 
+Reset jobs are useful for syncing assets and databases between environments. [Rclone](https://rclone.org/) supports various cloud storage providers and [crypt remotes](https://rclone.org/crypt/) for client-side encryption.
+
+Defaults for deployer host selectors, synced directories, file types and sizes are set - see input specs.
+
+Requires Gitlab CI/CD **file variable** in project settings:
+* `RCLONE_RESET_STORAGE_ENV`
+
+*RCLONE_RESET_STORAGE_ENV*
+```bash
+# Rclone configuration with environment variables for S3 backend: https://rclone.org/docs/#config-file and https://rclone.org/s3/
+RCLONE_CONFIG_STORAGE_TYPE=s3
+RCLONE_CONFIG_STORAGE_PROVIDER=AWS
+RCLONE_CONFIG_STORAGE_ACCESS_KEY_ID=<secret>
+RCLONE_CONFIG_STORAGE_SECRET_ACCESS_KEY=<secret>
+RCLONE_CONFIG_STORAGE_ENDPOINT=eu-central-1
+RCLONE_CONFIG_STORAGE_REGION=EU
+RCLONE_CONFIG_STORAGE_ACL=private
+# Crypt remote for client-side encryption is created on the fly from these variables in *.reset-prepare* job
+CRYPT_DIR=<bucket name in storage remote>
+# "Expand variable reference" in CI settings required
+CRYPT_NAME=${CI_PROJECT_NAME}
+CRYPT_PASSWORD=<secret>
+CRYPT_PASSWORD2=<secret>
+```
+
+Gitlab CI schedules can then be set as follows:
+* Name: 'Upload data from live instance'
+  * Cron: '0 14 * * 0'
+  * Variables:
+    * RESET_JOB == "true"
+* Name: 'Reset test instance from live data'
+  * Cron: '0 15 * * 0'
+  * Variables:
+    * RESET_JOB == "true"
+    * RESET_HOST_SELECTOR == "stage=test"

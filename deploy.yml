@@ -203,12 +203,12 @@ deploy-live-warmup:
 
 .reset-prepare:
   script:
-    # ensure RCLONE_RESET_STORAGE_ENV and RCLONE_RESET_CRYPT_ENV file variables are set
-    - 'if [ ! -f "${RCLONE_RESET_STORAGE_ENV}" ] || [ ! -f "${RCLONE_RESET_CRYPT_ENV}" ]; then echo "RCLONE_RESET_STORAGE_ENV and RCLONE_RESET_CRYPT_ENV must be set as CI/CD file variables!"; exit 1; fi'
+    # ensure RCLONE_RESET_STORAGE_ENV file variable is set
+    - 'if [ ! -f "${RCLONE_RESET_STORAGE_ENV}" ]; then echo "RCLONE_RESET_STORAGE_ENV must be set as a CI/CD file variable!"; exit 1; fi'
     # configure sftp remote
     - rclone config create --non-interactive sftp sftp host=${SFTP_HOST} user=${SFTP_USER} port=22 key_use_agent=true
     # configure crypt remote
-    - set -a && . ${RCLONE_RESET_STORAGE_ENV} && . ${RCLONE_RESET_CRYPT_ENV} && set +a
+    - set -a && . ${RCLONE_RESET_STORAGE_ENV} && set +a
     - 'rclone config create --non-interactive --obscure ${CRYPT_NAME} crypt remote=storage:${CRYPT_DIR}/${CRYPT_NAME} filename_encoding=base64 password=${CRYPT_PASSWORD} password2=${CRYPT_PASSWORD2}'
 
 # Requires a scheduled job with RESET_JOB == true no RESET_HOST_SELECTOR set
