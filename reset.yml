@@ -77,7 +77,7 @@ reset-upload-source:
     # get ssh connection params from deploy.php
     - DEPLOYER_SFTP_HOSTNAME=$(vendor/bin/dep config --format json ${RESET_UPLOAD_SOURCE_SELECTOR} | jq -r '.[].hostname')
     - DEPLOYER_SFTP_REMOTE_USER=$(vendor/bin/dep config --format json ${RESET_UPLOAD_SOURCE_SELECTOR} | jq -r '.[].remote_user')
-    - DEPLOYER_DEPLOY_PATH=$(vendor/bin/dep config --format json ${RESET_UPLOAD_SOURCE_SELECTOR} | jq -r '.[].DEPLOYER_DEPLOY_PATH')
+    - DEPLOYER_DEPLOY_PATH=$(vendor/bin/dep config --format json ${RESET_UPLOAD_SOURCE_SELECTOR} | jq -r '.[].deploy_path')
     # set up rclone remotes
     - !reference [.reset-prepare, script]
     # dump database on source
@@ -116,7 +116,7 @@ reset-download-target:
     # get ssh connection params from deploy.php
     - DEPLOYER_SFTP_HOSTNAME=$(vendor/bin/dep config --format json ${RESET_DOWNLOAD_TARGET_SELECTOR} | jq -r '.[].hostname')
     - DEPLOYER_SFTP_REMOTE_USER=$(vendor/bin/dep config --format json ${RESET_DOWNLOAD_TARGET_SELECTOR} | jq -r '.[].remote_user')
-    - DEPLOYER_DEPLOY_PATH=$(vendor/bin/dep config --format json ${RESET_DOWNLOAD_TARGET_SELECTOR} | jq -r '.[].DEPLOYER_DEPLOY_PATH')
+    - DEPLOYER_DEPLOY_PATH=$(vendor/bin/dep config --format json ${RESET_DOWNLOAD_TARGET_SELECTOR} | jq -r '.[].deploy_path')
     # set up rclone remotes
     - !reference [.reset-prepare, script]
     # remove old dump on target
