@@ -50,6 +50,8 @@ spec:
         - '*.mov'
       description: "Array of rclone --exclude patterns for media file sync."
 
+---
+
 .reset-prepare:
   script:
     # ensure RCLONE_RESET_STORAGE_ENV file variable is set
