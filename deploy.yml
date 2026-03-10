@@ -209,7 +209,7 @@ deploy-live-warmup:
     - rclone config create --non-interactive sftp sftp host=${SFTP_HOST} user=${SFTP_USER} port=22 key_use_agent=true
     # configure crypt remote
     - set -a && . ${RCLONE_RESET_STORAGE_ENV} && set +a
-    - 'rclone config create --non-interactive --obscure ${CRYPT_NAME} crypt remote=storage:${CRYPT_DIR}/${CRYPT_NAME} filename_encoding=base64 password=${CRYPT_PASSWORD} password2=${CRYPT_PASSWORD2}'
+    - 'rclone config create --non-interactive --obscure ${CRYPT_NAME} crypt remote=${CRYPT_REMOTE} filename_encoding=base64 password=${CRYPT_PASSWORD} password2=${CRYPT_PASSWORD2}'
 
 # Requires a scheduled job with RESET_JOB == true no RESET_HOST_SELECTOR set
 reset-upload-live:

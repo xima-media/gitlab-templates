@@ -147,9 +147,9 @@ RCLONE_CONFIG_STORAGE_ENDPOINT=eu-central-1
 RCLONE_CONFIG_STORAGE_REGION=EU
 RCLONE_CONFIG_STORAGE_ACL=private
 # Crypt remote for client-side encryption is created on the fly from these variables in *.reset-prepare* job
-CRYPT_DIR=<bucket name in storage remote>
-# "Expand variable reference" in CI settings required
-CRYPT_NAME=${CI_PROJECT_NAME}
+# GitLab CI/CD variable expansion required!
+CRYPT_NAME=<crypt_name>
+CRYPT_REMOTE="storage:<s3-bucket-name>/${CRYPT_NAME}"
 CRYPT_PASSWORD=<secret>
 CRYPT_PASSWORD2=<secret>
 ```
