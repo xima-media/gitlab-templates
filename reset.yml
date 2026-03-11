@@ -97,7 +97,7 @@ reset-upload-source:
     # sync media files from sftp to crypt remote with applied filters
     - |
       for dir in $[[ inputs.reset_sync_dirs ]]; do
-        CMD="rclone sync -v --inplace --metadata --size-only \"sftp:${DEPLOYER_DEPLOY_PATH}/shared/public/${dir}/\" \"${CRYPT_NAME}:shared/public/${dir}/\" --max-size=\"$[[ inputs.reset_sync_max_size ]]\" --delete-excluded $EXCLUDE_ARGS"
+        CMD="rclone sync -v --inplace --metadata \"sftp:${DEPLOYER_DEPLOY_PATH}/shared/public/${dir}/\" \"${CRYPT_NAME}:shared/public/${dir}/\" --max-size=\"$[[ inputs.reset_sync_max_size ]]\" --delete-excluded $EXCLUDE_ARGS"
         echo "$CMD"
         sh -c "$CMD"
       done
@@ -131,7 +131,7 @@ reset-download-target:
     # copy media files from crypt remote to sftp remote and fix file permissions
     - |
       for dir in $[[ inputs.reset_sync_dirs ]]; do
-        CMD="rclone copy -v --inplace --metadata --no-update-modtime --no-update-dir-modtime --sftp-set-modtime=false --size-only \"${CRYPT_NAME}:shared/public/${dir}/\" \"sftp:${DEPLOYER_DEPLOY_PATH}/shared/public/${dir}/\""
+        CMD="rclone copy -v --inplace --metadata \"${CRYPT_NAME}:shared/public/${dir}/\" \"sftp:${DEPLOYER_DEPLOY_PATH}/shared/public/${dir}/\""
         echo "$CMD"
         sh -c "$CMD"
         vendor/bin/dep run "find public/${dir}/ -type f ! -perm 660 -user ${DEPLOYER_SFTP_REMOTE_USER} -exec chmod 660 {} \;" "${RESET_DOWNLOAD_TARGET_SELECTOR}" --no-interaction -vvv
