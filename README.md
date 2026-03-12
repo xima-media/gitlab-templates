@@ -37,6 +37,8 @@ include:
   * `build-php-no-dev`
   * `build-php-v11`
   * `build-node` ⚠️ needs configuration
+
+* reset
   * `reset-upload-source` ⚠️ needs configuration
   * `reset-download-target` ⚠️ needs configuration
 

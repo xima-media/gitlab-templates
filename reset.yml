@@ -64,9 +64,9 @@ spec:
 
 # Requires a scheduled job with RESET_JOB == true no RESET_DOWNLOAD_TARGET_SELECTOR set
 reset-upload-source:
-  needs:
-    - job: build-php
-  stage: build
+  dependencies:
+    - build-php
+  stage: reset
   extends: .deploy-prepare
   variables:
   script:
@@ -106,9 +106,9 @@ reset-upload-source:
 
 # Requires a scheduled job with RESET_JOB == true and RESET_DOWNLOAD_TARGET_SELECTOR set with target host selector
 reset-download-target:
-  needs:
-    - job: build-php
-  stage: build
+  dependencies:
+    - build-php
+  stage: reset
   extends: .deploy-prepare
   script:
     # install rclone and jq
