@@ -1,6 +1,8 @@
 test-typoscript-lint:
   stage: test
   needs: [ "build-php" ]
+  inherit:
+    variables: false
   script:
     - composer run ci:typoscript:lint
   rules:

@@ -1,11 +1,13 @@
 build-node:
   stage: build
   cache:
-    - key: 
+    - key:
         files:
           - package-lock.json
       paths:
         - node_modules/
+  inherit:
+    variables: false
   script:
     - if [ ! -d "node_modules" ]; then npm ci --unsafe-perm; fi
     - npm run build

@@ -6,6 +6,8 @@ test-php-functional:
       alias: db
       variables:
         MARIADB_ROOT_PASSWORD: root
+  inherit:
+    variables: false
   script:
     - composer run ci:test:functional
   rules:
