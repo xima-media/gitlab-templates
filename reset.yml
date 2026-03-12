@@ -119,15 +119,6 @@ reset-download-target:
     - DEPLOYER_DEPLOY_PATH=$(vendor/bin/dep config --format json ${RESET_DOWNLOAD_TARGET_SELECTOR} | jq -r '.[].deploy_path')
     # set up rclone remotes
     - !reference [.reset-prepare, script]
-    # remove old dump on target
-    - vendor/bin/dep db:rmdump "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
-    # copy database from crypt remote to sftp remote
-    - 'rclone copy -v --inplace --metadata "${CRYPT_NAME}:.dep/database/dumps/" "sftp:${DEPLOYER_DEPLOY_PATH}/.dep/database/dumps/"'
-    # import database on target
-    - vendor/bin/dep db:decompress "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:process "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:import "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:rmdump "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
     # copy media files from crypt remote to sftp remote and fix file permissions
     - |
       for dir in $[[ inputs.reset_sync_dirs ]]; do
@@ -137,5 +128,14 @@ reset-download-target:
         vendor/bin/dep run "find public/${dir}/ -type f ! -perm 660 -user ${DEPLOYER_SFTP_REMOTE_USER} -exec chmod 660 {} \;" "${RESET_DOWNLOAD_TARGET_SELECTOR}" --no-interaction -vvv
         vendor/bin/dep run "find public/${dir}/ -type d ! -perm 2770 -user ${DEPLOYER_SFTP_REMOTE_USER} -exec chmod 2770 {} \;" "${RESET_DOWNLOAD_TARGET_SELECTOR}" --no-interaction -vvv
       done
+    # remove old dump on target
+    - vendor/bin/dep db:rmdump "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    # copy database from crypt remote to sftp remote
+    - 'rclone copy -v --inplace --metadata "${CRYPT_NAME}:.dep/database/dumps/" "sftp:${DEPLOYER_DEPLOY_PATH}/.dep/database/dumps/"'
+    # import database on target
+    - vendor/bin/dep db:decompress "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:process "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:import "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:rmdump "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
   rules:
     - if: $RESET_JOB == "true" && $RESET_DOWNLOAD_TARGET_SELECTOR != null
