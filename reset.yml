@@ -86,7 +86,7 @@ reset-upload-source:
     - vendor/bin/dep db:process "${RESET_UPLOAD_SOURCE_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
     - vendor/bin/dep db:compress "${RESET_UPLOAD_SOURCE_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
     # sync database from sftp remote to crypt remote
-    - 'rclone sync -v --inplace --metadata --include "*dumpcode=resetJob*" --delete-excluded "sftp:${DEPLOYER_DEPLOY_PATH}/.dep/database/dumps/" ${CRYPT_NAME}:.dep/database/dumps'
+    - 'rclone sync -v --inplace --metadata --refresh-times --include "*dumpcode=resetJob*" --delete-excluded "sftp:${DEPLOYER_DEPLOY_PATH}/.dep/database/dumps/" ${CRYPT_NAME}:.dep/database/dumps'
     # prepare exclude args for rclone
     - |
       EXCLUDE_ARGS=""
@@ -97,7 +97,7 @@ reset-upload-source:
     # sync media files from sftp to crypt remote with applied filters
     - |
       for dir in $[[ inputs.reset_sync_dirs ]]; do
-        CMD="rclone sync -v --inplace --metadata \"sftp:${DEPLOYER_DEPLOY_PATH}/shared/public/${dir}/\" \"${CRYPT_NAME}:shared/public/${dir}/\" --max-size=\"$[[ inputs.reset_sync_max_size ]]\" --delete-excluded $EXCLUDE_ARGS"
+        CMD="rclone sync -v --inplace --metadata --refresh-times \"sftp:${DEPLOYER_DEPLOY_PATH}/shared/public/${dir}/\" \"${CRYPT_NAME}:shared/public/${dir}/\" --max-size=\"$[[ inputs.reset_sync_max_size ]]\" --delete-excluded $EXCLUDE_ARGS"
         echo "$CMD"
         sh -c "$CMD"
       done
@@ -122,7 +122,7 @@ reset-download-target:
     # copy media files from crypt remote to sftp remote and fix file permissions
     - |
       for dir in $[[ inputs.reset_sync_dirs ]]; do
-        CMD="rclone copy -v --inplace --metadata \"${CRYPT_NAME}:shared/public/${dir}/\" \"sftp:${DEPLOYER_DEPLOY_PATH}/shared/public/${dir}/\""
+        CMD="rclone copy -v --inplace --metadata --refresh-times \"${CRYPT_NAME}:shared/public/${dir}/\" \"sftp:${DEPLOYER_DEPLOY_PATH}/shared/public/${dir}/\""
         echo "$CMD"
         sh -c "$CMD"
         vendor/bin/dep run "find public/${dir}/ -type f ! -perm 660 -user ${DEPLOYER_SFTP_REMOTE_USER} -exec chmod 660 {} \;" "${RESET_DOWNLOAD_TARGET_SELECTOR}" --no-interaction -vvv
@@ -131,7 +131,7 @@ reset-download-target:
     # remove old dump on target
     - vendor/bin/dep db:rmdump "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
     # copy database from crypt remote to sftp remote
-    - 'rclone copy -v --inplace --metadata "${CRYPT_NAME}:.dep/database/dumps/" "sftp:${DEPLOYER_DEPLOY_PATH}/.dep/database/dumps/"'
+    - 'rclone copy -v --inplace --metadata --refresh-times "${CRYPT_NAME}:.dep/database/dumps/" "sftp:${DEPLOYER_DEPLOY_PATH}/.dep/database/dumps/"'
     # import database on target
     - vendor/bin/dep db:decompress "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
     - vendor/bin/dep db:process "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
