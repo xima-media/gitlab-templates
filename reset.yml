@@ -64,9 +64,9 @@ spec:
 
 # Requires a scheduled job with RESET_JOB == true no RESET_DOWNLOAD_TARGET_SELECTOR set
 reset-upload-source:
-  needs:
-    - job: build-php
-  stage: build
+  dependencies:
+    - build-php
+  stage: reset
   extends: .deploy-prepare
   variables:
   script:
@@ -86,7 +86,7 @@ reset-upload-source:
     - vendor/bin/dep db:process "${RESET_UPLOAD_SOURCE_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
     - vendor/bin/dep db:compress "${RESET_UPLOAD_SOURCE_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
     # sync database from sftp remote to crypt remote
-    - 'rclone sync -v --inplace --metadata --include "*dumpcode=resetJob*" --delete-excluded "sftp:${DEPLOYER_DEPLOY_PATH}/.dep/database/dumps/" ${CRYPT_NAME}:.dep/database/dumps'
+    - 'rclone sync -v --inplace --metadata --refresh-times --include "*dumpcode=resetJob*" --delete-excluded "sftp:${DEPLOYER_DEPLOY_PATH}/.dep/database/dumps/" ${CRYPT_NAME}:.dep/database/dumps'
     # prepare exclude args for rclone
     - |
       EXCLUDE_ARGS=""
@@ -97,7 +97,7 @@ reset-upload-source:
     # sync media files from sftp to crypt remote with applied filters
     - |
       for dir in $[[ inputs.reset_sync_dirs ]]; do
-        CMD="rclone sync -v --inplace --metadata \"sftp:${DEPLOYER_DEPLOY_PATH}/shared/public/${dir}/\" \"${CRYPT_NAME}:shared/public/${dir}/\" --max-size=\"$[[ inputs.reset_sync_max_size ]]\" --delete-excluded $EXCLUDE_ARGS"
+        CMD="rclone sync -v --inplace --metadata --refresh-times \"sftp:${DEPLOYER_DEPLOY_PATH}/shared/public/${dir}/\" \"${CRYPT_NAME}:shared/public/${dir}/\" --max-size=\"$[[ inputs.reset_sync_max_size ]]\" --delete-excluded $EXCLUDE_ARGS"
         echo "$CMD"
         sh -c "$CMD"
       done
@@ -106,11 +106,14 @@ reset-upload-source:
 
 # Requires a scheduled job with RESET_JOB == true and RESET_DOWNLOAD_TARGET_SELECTOR set with target host selector
 reset-download-target:
-  needs:
-    - job: build-php
-  stage: build
+  dependencies:
+    - build-php
+  stage: reset
   extends: .deploy-prepare
   script:
+    # ensure the commit branch from which the reset has been triggered matches the last deployed commit branch on target
+    - LAST_DEPLOYED_COMMIT_BRANCH=$(vendor/bin/dep run "head -n 1 ../../.dep/releases_log | jq -r '.target'" "${RESET_DOWNLOAD_TARGET_SELECTOR}" | awk -F'] ' '{print $2}')
+    - 'if [ "$LAST_DEPLOYED_COMMIT_BRANCH" != "$CI_COMMIT_BRANCH" ]; then echo "The last deployed commit branch on target ($LAST_DEPLOYED_COMMIT_BRANCH) does not match the commit branch from which the reset job has been triggered ($CI_COMMIT_BRANCH). Aborting reset to prevent potential data loss!"; exit 1; fi'
     # install rclone and jq
     - apk add --update --quiet rclone jq && rclone version && jq --version
     # get ssh connection params from deploy.php
@@ -119,23 +122,23 @@ reset-download-target:
     - DEPLOYER_DEPLOY_PATH=$(vendor/bin/dep config --format json ${RESET_DOWNLOAD_TARGET_SELECTOR} | jq -r '.[].deploy_path')
     # set up rclone remotes
     - !reference [.reset-prepare, script]
-    # remove old dump on target
-    - vendor/bin/dep db:rmdump "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
-    # copy database from crypt remote to sftp remote
-    - 'rclone copy -v --inplace --metadata "${CRYPT_NAME}:.dep/database/dumps/" "sftp:${DEPLOYER_DEPLOY_PATH}/.dep/database/dumps/"'
-    # import database on target
-    - vendor/bin/dep db:decompress "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:process "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:import "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
-    - vendor/bin/dep db:rmdump "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
     # copy media files from crypt remote to sftp remote and fix file permissions
     - |
       for dir in $[[ inputs.reset_sync_dirs ]]; do
-        CMD="rclone copy -v --inplace --metadata \"${CRYPT_NAME}:shared/public/${dir}/\" \"sftp:${DEPLOYER_DEPLOY_PATH}/shared/public/${dir}/\""
+        CMD="rclone copy -v --inplace --metadata --refresh-times \"${CRYPT_NAME}:shared/public/${dir}/\" \"sftp:${DEPLOYER_DEPLOY_PATH}/shared/public/${dir}/\""
         echo "$CMD"
         sh -c "$CMD"
         vendor/bin/dep run "find public/${dir}/ -type f ! -perm 660 -user ${DEPLOYER_SFTP_REMOTE_USER} -exec chmod 660 {} \;" "${RESET_DOWNLOAD_TARGET_SELECTOR}" --no-interaction -vvv
         vendor/bin/dep run "find public/${dir}/ -type d ! -perm 2770 -user ${DEPLOYER_SFTP_REMOTE_USER} -exec chmod 2770 {} \;" "${RESET_DOWNLOAD_TARGET_SELECTOR}" --no-interaction -vvv
       done
+    # remove old dump on target
+    - vendor/bin/dep db:rmdump "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    # copy database from crypt remote to sftp remote
+    - 'rclone copy -v --inplace --metadata --refresh-times "${CRYPT_NAME}:.dep/database/dumps/" "sftp:${DEPLOYER_DEPLOY_PATH}/.dep/database/dumps/"'
+    # import database on target
+    - vendor/bin/dep db:decompress "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:process "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:import "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    - vendor/bin/dep db:rmdump "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
   rules:
     - if: $RESET_JOB == "true" && $RESET_DOWNLOAD_TARGET_SELECTOR != null

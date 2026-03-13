@@ -1,7 +1,7 @@
 build-node:
   stage: build
   cache:
-    - key: 
+    - key:
         files:
           - package-lock.json
       paths:
@@ -13,6 +13,5 @@ build-node:
     paths:
     expire_in: 1 day
   rules:
-    - if: $RESET_JOB == 'true'
-      when: never
-    - when: on_success
+    - if: '$RESET_JOB != "true"'
+    - if: '$RESET_JOB == "true" && $RESET_DOWNLOAD_TARGET_SELECTOR != null'
