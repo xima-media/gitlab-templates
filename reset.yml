@@ -112,7 +112,7 @@ reset-download-target:
   extends: .deploy-prepare
   script:
     # ensure the commit branch from which the reset has been triggered matches the last deployed commit branch on target
-    - LAST_DEPLOYED_COMMIT_BRANCH=$(vendor/bin/dep run "head -n 1 ../../.dep/releases_log | jq -r '.target'" "${RESET_DOWNLOAD_TARGET_SELECTOR}" | awk -F'] ' '{print $2}')
+    - LAST_DEPLOYED_COMMIT_BRANCH=$(vendor/bin/dep run "tail -n 1 ../../.dep/releases_log | jq -r '.target'" "${RESET_DOWNLOAD_TARGET_SELECTOR}" | awk -F'] ' '{print $2}')
     - 'if [ "$LAST_DEPLOYED_COMMIT_BRANCH" != "$CI_COMMIT_BRANCH" ]; then echo "The last deployed commit branch on target ($LAST_DEPLOYED_COMMIT_BRANCH) does not match the commit branch from which the reset job has been triggered ($CI_COMMIT_BRANCH). Aborting reset to prevent potential data loss!"; exit 1; fi'
     # install rclone and jq
     - apk add --update --quiet rclone jq && rclone version && jq --version
