@@ -8,10 +8,10 @@ include:
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/build-php.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/build-node.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-composer-normalize.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-editorconfig-lint'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-editorconfig-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-composer-sitepackage.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-es-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-language-lint'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-language-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-html-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-cs-fixer.yml'
@@ -37,6 +37,8 @@ include:
   * `build-php-no-dev`
   * `build-php-v11`
   * `build-node` ⚠️ needs configuration
+
+* reset
   * `reset-upload-source` ⚠️ needs configuration
   * `reset-download-target` ⚠️ needs configuration
 
@@ -65,6 +67,7 @@ include:
 * release
 * deploy.live
   * `deploy-live`
+  * `deploy-live-warmup`
 * test.live
 
 ## Configure jobs
@@ -162,19 +165,20 @@ CRYPT_PASSWORD2=<secret>
 
 ### Defaults
 
-- Configurable defaults for synced directories, file types and sizes are set in input specs of [reset.yml](reset.yml).
-- RESET_UPLOAD_SOURCE_SELECTOR defaults to *stage=live*.
+Configurable defaults for synced directories, file types and sizes are set in input specs of [reset.yml](reset.yml).
 
 Notes about variables:
-* **RESET_JOB** == "*true*" must always be set to indicate this is a reset job
+* **RESET_JOB** must be set to *"true"* to trigger reset jobs.
 * **RESET_UPLOAD_SOURCE_SELECTOR** and **RESET_DOWNLOAD_TARGET_SELECTOR** can match host names or labels defined in deploy.php:
   * RESET_UPLOAD_SOURCE_SELECTOR == *'hostname'*
   * RESET_DOWNLOAD_TARGET_SELECTOR == *'label=value'*
+* **RESET_UPLOAD_SOURCE_SELECTOR** defaults to *stage=live* when unset.
+* **reset-download-target** aborts if the last deployed commit branch on target does not match `$CI_COMMIT_BRANCH` for which the pipeline is run.
 
 Default behaviour:
-* `RESET_JOB == "true"` -> triggers **reset-upload-source** with RESET_UPLOAD_SOURCE_SELECTOR == *stage=live*
-* `RESET_JOB == "true" && RESET_DOWNLOAD_TARGET_SELECTOR == '<selector>'` -> triggers **reset-download-target** for *selector*
-* `RESET_JOB == "true" && RESET_UPLOAD_SOURCE_SELECTOR == 'xyz'` -> triggers **reset-upload-source** for host *xyz*
+* `RESET_JOB == "true"` and `RESET_DOWNLOAD_TARGET_SELECTOR,RESET_UPLOAD_SOURCE_SELECTOR` unset -> triggers **reset-upload-source**
+* `RESET_JOB == "true"` and `RESET_UPLOAD_SOURCE_SELECTOR == '<selector>'` -> triggers **reset-upload-source** for host *<selector>*
+* `RESET_JOB == "true"` and `RESET_DOWNLOAD_TARGET_SELECTOR == '<selector>'` -> Triggers **reset-download-target** for *<selector>*, which validates that this selector already is a deployment target of the $CI_COMMIT_BRANCH from which the pipeline was run before importing assets + database, followed up by **deploy-test** if applicable (no Release created in this case!).
 
 ### Usage
 
@@ -183,14 +187,22 @@ Gitlab CI schedules for periodic resets are set as follows:
   * Cron: '0 14 * * 0'
   * Variables:
     * RESET_JOB == "true"
+    * RESET_UPLOAD_SOURCE_SELECTOR == "stage=live"
+  * Run for branch name:
+    * Any, does not need to match "stage=live" for upload.
+
 * Name: 'Reset test instance(s) in deploy.php to previously uploaded data'
   * Cron: '0 15 * * 0'
   * Variables:
     * RESET_JOB == "true"
     * RESET_DOWNLOAD_TARGET_SELECTOR == "stage=test"
+  * Run for branch name:
+    * Branch that is already associated with hosts matching 'stage=test'.
 
 Jobs can be triggered manually from a pipeline using Gitlab UI with the same variables:
-* Manually upload data from host 'xyz' in deploy.php
+* Reset host 'xyz' in deploy.php to previously uploaded data
   * Variables:
     * RESET_JOB == "true"
-    * RESET_UPLOAD_SOURCE_SELECTOR == "xyz"
+    * RESET_DOWNLOAD_TARGET_SELECTOR == "xyz"
+  * Run for branch name:
+    * Branch that is already associated with host 'xyz'.
