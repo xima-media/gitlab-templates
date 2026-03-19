@@ -97,7 +97,7 @@ reset-upload-source:
     # sync media files from sftp to crypt remote with applied filters
     - |
       for dir in $[[ inputs.reset_sync_dirs ]]; do
-        CMD="rclone sync -v --inplace --metadata --refresh-times \"sftp:${DEPLOYER_DEPLOY_PATH}/shared/public/${dir}/\" \"${CRYPT_NAME}:shared/public/${dir}/\" --max-size=\"$[[ inputs.reset_sync_max_size ]]\" --delete-excluded $EXCLUDE_ARGS"
+        CMD="rclone sync -v --inplace --metadata --refresh-times \"sftp:${DEPLOYER_DEPLOY_PATH}/shared/public/${dir}/\" \"${CRYPT_NAME}:shared/public/${dir}/\" --max-size=\"$[[ inputs.reset_sync_max_size ]]\" --delete-excluded --ignore-case $EXCLUDE_ARGS"
         echo "$CMD"
         sh -c "$CMD"
       done
