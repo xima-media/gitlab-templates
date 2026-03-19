@@ -1,6 +1,8 @@
 test-es-lint:
   stage: test
   needs: [ "build-node" ]
+  inherit:
+    variables: false
   script:
     - npm run es:lint
   rules:

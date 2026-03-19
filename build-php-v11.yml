@@ -1,11 +1,14 @@
 build-php:
   stage: build
   cache:
-    - key: 
-        files: 
+    - key:
+        files:
           - composer.lock
       paths:
         - .composer-cache/
+  inherit:
+    variables:
+      - COMPOSER_INSTALL_OPTIONS
   script:
     - composer config -g cache-dir "$(pwd)/.composer-cache"
     - composer install --optimize-autoloader --no-ansi --no-interaction --no-progress $COMPOSER_INSTALL_OPTIONS
