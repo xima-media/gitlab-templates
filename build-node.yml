@@ -7,7 +7,7 @@ build-node:
       paths:
         - node_modules/
   script:
-    - if [ ! -d "node_modules" ]; then npm ci --unsafe-perm; fi
+    - if [ ! -d "node_modules" ]; then npm ci --unsafe-perm --ignore-scripts --allow-git=none; fi
     - npm run build
   artifacts:
     paths:
