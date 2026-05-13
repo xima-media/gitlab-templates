@@ -1,6 +1,7 @@
 # Use as template for Playwright tests. You can extend this template in your .gitlab-ci.yml file and override the variables to fit your needs.
 
 .test-playwright-base:
+  # Prebuilt image from https://github.com/xima-media/typo3-docker
   image:
     name: ghcr.io/xima-media/playwright:1.59.1@sha256:57dfa6a0ed6045a5ee00de143413055973c7f569e30b03d59a912c73473dfb60
   variables:
