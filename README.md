@@ -4,23 +4,24 @@ Collection of reusable GitLab steps.
 
 ```yml
 include:
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/.deploy-prepare.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/build-php.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/build-node.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-composer-normalize.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-editorconfig-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-composer-sitepackage.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-es-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-language-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-html-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-cs-fixer.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-stan.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-unit.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-functional.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-typoscript-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-yaml-lint.yml'
-  - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/deploy.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/.deploy-prepare.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/build-php.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/build-node.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-composer-normalize.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-editorconfig-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-composer-sitepackage.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-es-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-language-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-html-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-php-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-php-cs-fixer.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-php-stan.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-php-unit.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-php-functional.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-typoscript-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-yaml-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-playwright-base.template.yml
+  - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/deploy.yml'
     inputs:
       ci_server_url: https://git.example.com
       live_environment_url: 'https://example.com/'
@@ -69,6 +70,11 @@ include:
   * `deploy-live`
   * `deploy-live-warmup`
 * test.live
+
+## Reusable templates by stages
+
+* [No stage]
+  * `.test-playwright-base` ⚠️ needs configuration
 
 ## Configure jobs
 
@@ -206,3 +212,22 @@ Jobs can be triggered manually from a pipeline using Gitlab UI with the same var
     * RESET_DOWNLOAD_TARGET_SELECTOR == "xyz"
   * Run for branch name:
     * Branch that is already associated with host 'xyz'.
+
+## Configure templates
+
+### `.test-playwright-base`
+
+Set `playwright.config.js` to use PLAYWRIGHT_BASE_URL and PLAYWRIGHT_SUITE environment variables. Then create a job in `.gitlab-ci.yml` from the template:
+
+```yaml
+test-playwright-e2e:
+  # set stage as required!
+  stage: mystage
+  extends: .test-playwright-base
+  variables:
+    PLAYWRIGHT_BASE_URL: "https://www.example.org"
+    PLAYWRIGHT_SUITE: e2e
+  # set rules according to stage!
+  rules:
+    - ...
+```
