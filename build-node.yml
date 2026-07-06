@@ -78,6 +78,8 @@ spec:
       default: node
       description: "Prefix for the cache key, useful to bust the cache or separate variants."
 
+---
+
 build-node:
   stage: $[[ inputs.stage ]]
   image: $[[ inputs.image ]]
