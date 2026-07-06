@@ -1,17 +1,110 @@
+# Flexible Node.js frontend build template.
+#
+# Builds frontend assets for projects with a single package.json OR with
+# MULTIPLE package.json files (e.g. TYPO3 monorepos containing several site
+# packages / extensions) without having to override the whole job in the
+# project .gitlab-ci.yml.
+#
+# The Node.js image is passed as a (required) input instead of being pinned in
+# the template. Add a Renovate annotation in the project so the digest stays up
+# to date (requires a regex customManager in your Renovate config/preset):
+#
+#   include:
+#     - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/<ref>/build-node.yml'
+#       inputs:
+#         # renovate: datasource=docker depName=node
+#         image: "node:22-slim@sha256:..."
+#
+# Multiple packages + multiple asset paths, configured entirely via inputs:
+#
+#   include:
+#     - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/<ref>/build-node.yml'
+#       inputs:
+#         # renovate: datasource=docker depName=node
+#         image: "node:22-slim@sha256:..."
+#         package_dirs: "packages/xima-sitepackage packages/xima-sitepackage-genr packages/xima-api-client"
+#         artifact_paths:
+#           - packages/xima-sitepackage/Resources/Public
+#           - packages/xima-sitepackage-genr/Resources/Public
+#           - packages/xima-api-client/Resources/Public/Css/dist
+#           - packages/xima-api-client/Resources/Public/JavaScript/dist
+#         cache_paths:
+#           - packages/*/node_modules/
+#           - .npm/
+
+spec:
+  inputs:
+    image:
+      type: string
+      description: "Node.js Docker image used for the build job (pin with a digest in the project so Renovate can update it)."
+    stage:
+      type: string
+      default: build
+      description: "Pipeline stage the build job runs in."
+    package_dirs:
+      type: string
+      default: "."
+      description: "Space separated list of directories, each containing a package.json. Dependencies are installed and assets are built in every directory (in the given order)."
+      regex: ^[A-Za-z0-9_./ -]+$
+    install_command:
+      type: string
+      default: "npm ci --unsafe-perm --ignore-scripts --allow-git=none --prefer-offline"
+      description: "Command used to install dependencies inside each package directory."
+    build_command:
+      type: string
+      default: "npm run build"
+      description: "Command used to build assets inside each package directory."
+    artifact_paths:
+      type: array
+      default: []
+      description: "Paths saved as build artifacts, e.g. the compiled asset directories. Empty means no artifacts are stored."
+    artifacts_expire_in:
+      type: string
+      default: "1 day"
+      description: "How long build artifacts are kept."
+    cache_paths:
+      type: array
+      default:
+        - node_modules/
+        - .npm/
+      description: "Paths cached between pipeline runs. Globs are supported, e.g. packages/*/node_modules/."
+    cache_key_files:
+      type: array
+      default:
+        - package-lock.json
+      description: "Files whose checksums build the cache key (GitLab allows at most 2 files)."
+    cache_key_prefix:
+      type: string
+      default: node
+      description: "Prefix for the cache key, useful to bust the cache or separate variants."
+
 build-node:
-  stage: build
+  stage: $[[ inputs.stage ]]
+  image: $[[ inputs.image ]]
+  variables:
+    # Shared npm cache reused across every package install (cached via cache_paths).
+    NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.npm"
+    NPM_CONFIG_FUND: "false"
+    NPM_CONFIG_AUDIT: "false"
   cache:
     - key:
-        files:
-          - package-lock.json
-      paths:
-        - node_modules/
+        prefix: $[[ inputs.cache_key_prefix ]]
+        files: $[[ inputs.cache_key_files ]]
+      paths: $[[ inputs.cache_paths ]]
   script:
-    - if [ ! -d "node_modules" ]; then npm ci --unsafe-perm --ignore-scripts --allow-git=none; fi
-    - npm run build
+    - |
+      set -eu
+      for dir in $[[ inputs.package_dirs ]]; do
+        echo "==> $dir"
+        (
+          cd "$dir"
+          $[[ inputs.install_command ]]
+          $[[ inputs.build_command ]]
+        )
+      done
   artifacts:
-    paths:
-    expire_in: 1 day
+    paths: $[[ inputs.artifact_paths ]]
+    expire_in: $[[ inputs.artifacts_expire_in ]]
   rules:
     - if: '$RESET_JOB != "true"'
     - if: '$RESET_JOB == "true" && $RESET_DOWNLOAD_TARGET_SELECTOR != null'
