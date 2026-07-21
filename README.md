@@ -173,7 +173,7 @@ Notes about variables:
   * RESET_UPLOAD_SOURCE_SELECTOR == *'hostname'*
   * RESET_DOWNLOAD_TARGET_SELECTOR == *'label=value'*
 * **RESET_UPLOAD_SOURCE_SELECTOR** defaults to *stage=live* when unset.
-* **reset-download-target** aborts if the last deployed commit branch on target does not match `$CI_COMMIT_BRANCH` for which the pipeline is run.
+* **reset-download-target** aborts if the last deployed commit branch on target does not match `BRANCH_ID` (the `$CI_COMMIT_BRANCH` of the pipeline run, normalized by truncating at the first underscore).
 
 Default behaviour:
 * `RESET_JOB == "true"` and `RESET_DOWNLOAD_TARGET_SELECTOR,RESET_UPLOAD_SOURCE_SELECTOR` unset -> triggers **reset-upload-source**
