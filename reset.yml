@@ -141,5 +141,9 @@ reset-download-target:
     - vendor/bin/dep db:process "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
     - vendor/bin/dep db:import "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
     - vendor/bin/dep db:rmdump "${RESET_DOWNLOAD_TARGET_SELECTOR}" --options=dumpcode:resetJob --no-interaction -vvv
+    # sys_file_processedfile is excluded from the dump, so the target keeps its own rows while
+    # sys_file.sha1 is replaced by the source values. The stale originalfilesha1 then makes TYPO3
+    # flag the processed file as deleted and never restore the flag ("File has been deleted.").
+    - vendor/bin/dep run "{{bin/php}} {{local/bin/typo3}} cleanup:localprocessedfiles --all --force" "${RESET_DOWNLOAD_TARGET_SELECTOR}" --no-interaction -vvv
   rules:
     - if: $RESET_JOB == "true" && $RESET_DOWNLOAD_TARGET_SELECTOR != null
