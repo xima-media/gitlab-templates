@@ -1,8 +1,8 @@
 build-php-no-dev:
   stage: build
   cache:
-    - key: 
-        files: 
+    - key:
+        files:
           - composer.lock
           - public/.htaccess
       paths:
@@ -15,3 +15,7 @@ build-php-no-dev:
       - vendor/
       - public/
     expire_in: 1 day
+  rules:
+    - if: '$RESET_JOB != "true"'
+    - if: '$RESET_JOB == "true" && $RESET_DOWNLOAD_TARGET_SELECTOR != null'
+    - if: '$RESET_JOB == "true" && $RESET_DOWNLOAD_TARGET_HOST != null'
