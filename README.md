@@ -20,7 +20,7 @@ include:
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-php-functional.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-typoscript-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-yaml-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-playwright-base.template.yml
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-playwright-base.template.yml'
   - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/deploy.yml'
     inputs:
       ci_server_url: https://git.example.com
