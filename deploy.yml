@@ -94,7 +94,25 @@ deploy-test:
     - if: '$RESET_JOB == "true" && $CI_COMMIT_BRANCH == "$[[ inputs.test_host_branch | expand_vars ]]" && $RESET_DOWNLOAD_TARGET_SELECTOR == "$[[ inputs.test_host_selector | expand_vars ]]"'
   script:
     - vendor/bin/dep deploy:unlock $[[ inputs.test_host_selector ]] --branch=$CI_COMMIT_BRANCH -vvv
-    - vendor/bin/dep deploy-fast $[[ inputs.test_host_selector ]] --branch=$CI_COMMIT_BRANCH -vvv
+    - vendor/bin/dep deploy $[[ inputs.test_host_selector ]] --branch=$CI_COMMIT_BRANCH -vvv
+
+deploy-test-warmup:
+  needs:
+    - job: build-php
+    - job: deploy-test
+  stage: deploy.test
+  extends: .deploy-prepare
+  rules:
+    - if: '"$[[ inputs.test_deploy_enabled ]]" != "true"'
+      when: never
+    - if: '$CI_SERVER_URL != "$[[ inputs.ci_server_url | expand_vars ]]"'
+      when: never
+    # Run normal deployment job if not running in the context of a reset job.
+    - if: '$RESET_JOB != "true" && $CI_COMMIT_BRANCH == "$[[ inputs.test_host_branch | expand_vars ]]"'
+    # Run deployment job after environment has been reset to apply necessary database updates and similar tasks.
+    - if: '$RESET_JOB == "true" && $CI_COMMIT_BRANCH == "$[[ inputs.test_host_branch | expand_vars ]]" && $RESET_DOWNLOAD_TARGET_SELECTOR == "$[[ inputs.test_host_selector | expand_vars ]]"'
+  script:
+    - vendor/bin/dep deploy:cache:warmup $[[ inputs.test_host_selector ]] -vvv
 
 release:
   stage: release

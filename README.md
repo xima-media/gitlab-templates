@@ -4,24 +4,24 @@ Collection of reusable GitLab steps.
 
 ```yml
 include:
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/.deploy-prepare.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/build-php.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/build-node.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-composer-normalize.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-editorconfig-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-composer-sitepackage.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-es-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-language-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-html-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-php-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-php-cs-fixer.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-php-stan.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-php-unit.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-php-functional.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-typoscript-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-yaml-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-playwright-base.template.yml'
-  - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/deploy.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/.deploy-prepare.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/build-php.yml'
+  # build-node requires inputs since 2.0.0, see "Configure jobs" below
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/build-node.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-composer-normalize.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-editorconfig-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-composer-sitepackage.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-es-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-language-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-html-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-cs-fixer.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-stan.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-unit.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-functional.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-typoscript-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-yaml-lint.yml'
+  - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/deploy.yml'
     inputs:
       ci_server_url: https://git.example.com
       live_environment_url: 'https://example.com/'
@@ -103,17 +103,39 @@ test-composer-sitepackage:
 
 ### `build-node`
 
-Add this to your `.gitlab-ci.yml` to configure the node version and asset paths:
+Configured via inputs only. Every package directory needs its own `package.json`,
+`package-lock.json` and a `build` script. CI runs `npm ci` + `npm run build` in each one.
+All inputs are documented in [build-node.yml](build-node.yml).
+
+`test-es-lint`, `test-html-lint` and `test-typescript-lint` run in the project root and reuse
+`node_modules/` from the build-node artifacts. Projects using them must add `node_modules/`
+(of the root package) to `artifact_paths`.
 
 ```yaml
-build-node:
-  image:
-    name: node:18.17.1-slim
-  artifacts:
-    paths:
-      - packages/xm_dkfz_net_site/Resources/Public/Css/dist
-      - packages/xm_dkfz_net_site/Resources/Public/JavaScript/dist
+include:
+  - remote: 'https://github.xima.workers.dev/gitlab-templates/2.0.0/build-node.yml'
+    inputs:
+      image: "node:24-slim@sha256:..."
+      # only for multiple packages (default: ".")
+      package_dirs: "packages/xima_sitepackage packages/xima_api_client"
+      artifact_paths:
+        - packages/xima_sitepackage/Resources/Public/Css/dist
+        - packages/xima_api_client/Resources/Public/JavaScript/dist
+      # only for multiple packages (default: package-lock.json, max. 2 files)
+      cache_key_files:
+        - packages/xima_sitepackage/package-lock.json
+        - packages/xima_api_client/package-lock.json
 ```
+
+#### Migration 1.x → 2.0.0
+
+`image` is now a required input. Without it, the pipeline is not created.
+
+1. Add `inputs.image` to the `build-node.yml` include (keep the digest).
+2. Move `artifacts.paths` of your `build-node` job to `inputs.artifact_paths`.
+   Keep `node_modules/` only if the project depends on artifacts in following jobs.
+3. Delete the local `build-node:` job. A local `script` or `cache` would override the template.
+4. Projects that built several packages in a custom `script`: use `package_dirs` and `cache_key_files`.
 
 
 ### `test-es-lint`
@@ -179,7 +201,7 @@ Notes about variables:
   * RESET_UPLOAD_SOURCE_SELECTOR == *'hostname'*
   * RESET_DOWNLOAD_TARGET_SELECTOR == *'label=value'*
 * **RESET_UPLOAD_SOURCE_SELECTOR** defaults to *stage=live* when unset.
-* **reset-download-target** aborts if the last deployed commit branch on target does not match `$CI_COMMIT_BRANCH` for which the pipeline is run.
+* **reset-download-target** aborts if the last deployed commit branch on target does not match `BRANCH_ID` (the `$CI_COMMIT_BRANCH` of the pipeline run, normalized by truncating at the first underscore).
 
 Default behaviour:
 * `RESET_JOB == "true"` and `RESET_DOWNLOAD_TARGET_SELECTOR,RESET_UPLOAD_SOURCE_SELECTOR` unset -> triggers **reset-upload-source**
