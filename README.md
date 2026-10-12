@@ -6,6 +6,7 @@ Collection of reusable GitLab steps.
 include:
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/.deploy-prepare.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/build-php.yml'
+  # build-node requires inputs since 2.0.0, see "Configure jobs" below
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/build-node.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-composer-normalize.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-editorconfig-lint.yml'
@@ -101,6 +102,10 @@ Configured via inputs only. Every package directory needs its own `package.json`
 `package-lock.json` and a `build` script. CI runs `npm ci` + `npm run build` in each one.
 All inputs are documented in [build-node.yml](build-node.yml).
 
+`test-es-lint`, `test-html-lint` and `test-typescript-lint` run in the project root and reuse
+`node_modules/` from the build-node artifacts. Projects using them must add `node_modules/`
+(of the root package) to `artifact_paths`.
+
 ```yaml
 include:
   - remote: 'https://github.xima.workers.dev/gitlab-templates/2.0.0/build-node.yml'
@@ -121,9 +126,9 @@ include:
 
 `image` is now a required input. Without it, the pipeline is not created.
 
-1. Add `inputs.image` to the `build-node.yml` include (keep the digest, add the Renovate comment).
+1. Add `inputs.image` to the `build-node.yml` include (keep the digest).
 2. Move `artifacts.paths` of your `build-node` job to `inputs.artifact_paths`.
-   Drop `node_modules/`, no other job needs it.
+   Keep `node_modules/` only if the project depends on artifacts in following jobs.
 3. Delete the local `build-node:` job. A local `script` or `cache` would override the template.
 4. Projects that built several packages in a custom `script`: use `package_dirs` and `cache_key_files`.
 
