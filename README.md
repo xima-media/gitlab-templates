@@ -71,6 +71,11 @@ include:
   * `deploy-live-warmup`
 * test.live
 
+## Reusable templates by stages
+
+* [No stage]
+  * `.test-playwright-base` ⚠️ needs configuration
+
 ## Configure jobs
 
 ### `build-php`
@@ -229,3 +234,22 @@ Jobs can be triggered manually from a pipeline using Gitlab UI with the same var
     * RESET_DOWNLOAD_TARGET_SELECTOR == "xyz"
   * Run for branch name:
     * Branch that is already associated with host 'xyz'.
+
+## Configure templates
+
+### `.test-playwright-base`
+
+Set `playwright.config.js` to use PLAYWRIGHT_BASE_URL and PLAYWRIGHT_SUITE environment variables. Then create a job in `.gitlab-ci.yml` from the template:
+
+```yaml
+test-playwright-e2e:
+  # set stage as required!
+  stage: mystage
+  extends: .test-playwright-base
+  variables:
+    PLAYWRIGHT_BASE_URL: "https://www.example.org"
+    PLAYWRIGHT_SUITE: e2e
+  # set rules according to stage!
+  rules:
+    - ...
+```
