@@ -97,17 +97,35 @@ test-composer-sitepackage:
 
 ### `build-node`
 
-Add this to your `.gitlab-ci.yml` to configure the node version and asset paths:
+Configured via inputs only. Every package directory needs its own `package.json`,
+`package-lock.json` and a `build` script. CI runs `npm ci` + `npm run build` in each one.
+All inputs are documented in [build-node.yml](build-node.yml).
 
 ```yaml
-build-node:
-  image:
-    name: node:18.17.1-slim
-  artifacts:
-    paths:
-      - packages/xm_dkfz_net_site/Resources/Public/Css/dist
-      - packages/xm_dkfz_net_site/Resources/Public/JavaScript/dist
+include:
+  - remote: 'https://github.xima.workers.dev/gitlab-templates/2.0.0/build-node.yml'
+    inputs:
+      image: "node:24-slim@sha256:..."
+      # only for multiple packages (default: ".")
+      package_dirs: "packages/xima_sitepackage packages/xima_api_client"
+      artifact_paths:
+        - packages/xima_sitepackage/Resources/Public/Css/dist
+        - packages/xima_api_client/Resources/Public/JavaScript/dist
+      # only for multiple packages (default: package-lock.json, max. 2 files)
+      cache_key_files:
+        - packages/xima_sitepackage/package-lock.json
+        - packages/xima_api_client/package-lock.json
 ```
+
+#### Migration 1.x → 2.0.0
+
+`image` is now a required input. Without it, the pipeline is not created.
+
+1. Add `inputs.image` to the `build-node.yml` include (keep the digest, add the Renovate comment).
+2. Move `artifacts.paths` of your `build-node` job to `inputs.artifact_paths`.
+   Drop `node_modules/`, no other job needs it.
+3. Delete the local `build-node:` job. A local `script` or `cache` would override the template.
+4. Projects that built several packages in a custom `script`: use `package_dirs` and `cache_key_files`.
 
 
 ### `test-es-lint`
