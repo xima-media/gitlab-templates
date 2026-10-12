@@ -1,36 +1,9 @@
-# Flexible Node.js frontend build template.
+# Node.js frontend build template (single or multiple package.json files).
 #
-# Builds frontend assets for projects with a single package.json OR with
-# MULTIPLE package.json files (e.g. TYPO3 monorepos containing several site
-# packages / extensions) without having to override the whole job in the
-# project .gitlab-ci.yml.
-#
-# The Node.js image is passed as a (required) input instead of being pinned in
-# the template. Add a Renovate annotation in the project so the digest stays up
-# to date (requires a regex customManager in your Renovate config/preset):
-#
-#   include:
-#     - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/<ref>/build-node.yml'
-#       inputs:
-#         # renovate: datasource=docker depName=node
-#         image: "node:22-slim@sha256:..."
-#
-# Multiple packages + multiple asset paths, configured entirely via inputs:
-#
-#   include:
-#     - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/<ref>/build-node.yml'
-#       inputs:
-#         # renovate: datasource=docker depName=node
-#         image: "node:22-slim@sha256:..."
-#         package_dirs: "packages/xima-sitepackage packages/xima-sitepackage-genr packages/xima-api-client"
-#         artifact_paths:
-#           - packages/xima-sitepackage/Resources/Public
-#           - packages/xima-sitepackage-genr/Resources/Public
-#           - packages/xima-api-client/Resources/Public/Css/dist
-#           - packages/xima-api-client/Resources/Public/JavaScript/dist
-#         cache_paths:
-#           - packages/*/node_modules/
-#           - .npm/
+# Convention: every package directory has its own package.json + package-lock.json
+# and a "build" script. CI runs exactly the same commands in each directory:
+#   npm ci --unsafe-perm --ignore-scripts --allow-git=none --prefer-offline
+#   npm run build
 
 spec:
   inputs:
@@ -65,14 +38,13 @@ spec:
     cache_paths:
       type: array
       default:
-        - node_modules/
         - .npm/
-      description: "Paths cached between pipeline runs. Globs are supported, e.g. packages/*/node_modules/."
+      description: "Paths cached between pipeline runs."
     cache_key_files:
       type: array
       default:
         - package-lock.json
-      description: "Files whose checksums build the cache key (GitLab allows at most 2 files)."
+      description: "Files whose checksums build the cache key (GitLab allows at most 2 files). Use the package lockfiles for multiple package_dirs."
     cache_key_prefix:
       type: string
       default: node
