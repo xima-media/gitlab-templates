@@ -62,14 +62,17 @@ include:
 * docker.build
 * deploy.dev
 * test.dev
+  * `test-playwright-dev` ⚠️ needs configuration
 * deploy.test
   * `deploy-test`
 * test.test
+  * `test-playwright-test` ⚠️ needs configuration
 * release
 * deploy.live
   * `deploy-live`
   * `deploy-live-warmup`
 * test.live
+  * `test-playwright-live` ⚠️ needs configuration
 
 ## Reusable templates by stages
 
@@ -234,6 +237,23 @@ Jobs can be triggered manually from a pipeline using Gitlab UI with the same var
     * RESET_DOWNLOAD_TARGET_SELECTOR == "xyz"
   * Run for branch name:
     * Branch that is already associated with host 'xyz'.
+
+### `test-playwright-<environment>`
+
+Runs Playwright against one environment, right after its deploy job `deploy-<environment>`: stage `test.<environment>`, the deploy job's rules, and its dotenv report with `ENVIRONMENT_URL_PRIMARY` and `ENVIRONMENT_URL_ALIASES` (comma-separated). Read both in `playwright.config.js`; `PLAYWRIGHT_SUITE` holds the suite. Include the template once per environment, with the same include rules as the template that defines the deploy job:
+
+```yaml
+include:
+  - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/<release>/test-playwright.yml'
+    inputs:
+      environment: dev
+      suites: ["e2e", "accessibility"]
+```
+
+| Input | Default | Description |
+|---|---|---|
+| `environment` | - | `dev`, `test` or `live` |
+| `suites` | `["e2e"]` | Subdirectories of `Tests/Playwright`, one job per suite |
 
 ## Configure templates
 
