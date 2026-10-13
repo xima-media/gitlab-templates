@@ -240,20 +240,45 @@ Jobs can be triggered manually from a pipeline using Gitlab UI with the same var
 
 ### `test-playwright-<environment>`
 
-Runs Playwright against one environment, right after its deploy job `deploy-<environment>`: stage `test.<environment>`, the deploy job's rules, and its dotenv report with `ENVIRONMENT_URL_PRIMARY` and `ENVIRONMENT_URL_ALIASES` (comma-separated). Read both in `playwright.config.js`; `PLAYWRIGHT_SUITE` holds the suite. Include the template once per environment, with the same include rules as the template that defines the deploy job:
+Runs Playwright against one environment, right after its deploy job `deploy-<environment>`: stage `test.<environment>`, the deploy job's rules, and its dotenv report with `ENVIRONMENT_URL_PRIMARY` and `ENVIRONMENT_URL_ALIASES` (comma-separated). Include the template once per environment; VM dev and docker-compose-deploy include it for their environments themselves (input `dev_playwright_tests` etc.).
 
 ```yaml
 include:
   - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/<release>/test-playwright.yml'
     inputs:
-      environment: dev
-      suites: ["e2e", "accessibility"]
+      environment: test
+      tests:
+        - PLAYWRIGHT_SUITE: ["e2e", "accessibility"]
+        - PLAYWRIGHT_SUITE: calendar
+          PLAYWRIGHT_URL: alias_0
 ```
 
 | Input | Default | Description |
 |---|---|---|
 | `environment` | - | `dev`, `test` or `live` |
-| `suites` | `["e2e"]` | Subdirectories of `Tests/Playwright`, one job per suite |
+| `tests` | `[{PLAYWRIGHT_URL: "primary"}]` | Jobs in `parallel:matrix` format: `PLAYWRIGHT_SUITE` (subdirectory of `Tests/Playwright`, all if unset) and `PLAYWRIGHT_URL` (`primary`, `alias_0`, `alias_1`, ...) |
+| `enabled` | `true` | Whether to run the tests |
+
+`alias_<n>` is `TYPO3_ALIAS_URL_<n>` (VM) or the n-th entry of `hostname_aliases` (docker); keep the alias order the same in all environments. `playwright.config.js` resolves `PLAYWRIGHT_URL`, the same way in CI and locally with DDEV:
+
+```js
+const ciURLs = process.env.ENVIRONMENT_URL_PRIMARY
+  ? [process.env.ENVIRONMENT_URL_PRIMARY, ...(process.env.ENVIRONMENT_URL_ALIASES ?? '').split(',').filter(Boolean)]
+  : null;
+const localURLs = (process.env.VIRTUAL_HOST ?? '').split(',').filter(Boolean).map(host => `https://${host}`);
+const urls = ciURLs ?? localURLs;
+
+// primary = urls[0], alias_<n> = urls[n + 1]
+const selected = process.env.PLAYWRIGHT_URL ?? 'primary';
+const match = /^(primary|alias_(\d+))$/.exec(selected);
+const baseURL = match && urls[match[2] === undefined ? 0 : Number(match[2]) + 1];
+if (!baseURL) {
+  throw new Error(`PLAYWRIGHT_URL "${selected}" does not exist here (${urls.length - 1} aliases)`);
+}
+
+const suite = process.env.PLAYWRIGHT_SUITE;
+const testDir = suite ? `Tests/Playwright/${suite}` : 'Tests/Playwright';
+```
 
 ## Configure templates
 

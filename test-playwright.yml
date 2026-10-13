@@ -1,13 +1,16 @@
 # Usage: Playwright tests against one environment, right after its deploy job deploy-<environment>.
-# Include once per environment. The job takes stage test.<environment> and the deploy job's rules,
-# and imports its dotenv report: ENVIRONMENT_URL_PRIMARY and ENVIRONMENT_URL_ALIASES
-# (comma-separated), for playwright.config.js.
+# The job takes stage test.<environment> and the deploy job's rules, and imports its dotenv report:
+# ENVIRONMENT_URL_PRIMARY and ENVIRONMENT_URL_ALIASES (comma-separated). playwright.config.js picks
+# the URL named by PLAYWRIGHT_URL (primary, alias_0, alias_1, ...) and the suite PLAYWRIGHT_SUITE.
 #
 # include:
 #   - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/<release>/test-playwright.yml'
 #     inputs:
-#       environment: dev
-#       suites: ["e2e", "accessibility"]
+#       environment: test
+#       tests:
+#         - PLAYWRIGHT_SUITE: ["e2e", "accessibility"]
+#         - PLAYWRIGHT_SUITE: calendar
+#           PLAYWRIGHT_URL: alias_0
 
 spec:
   inputs:
@@ -15,10 +18,14 @@ spec:
       type: string
       options: ["dev", "test", "live"]
       description: "Environment the tests run against, after its deploy job deploy-<environment>."
-    suites:
+    tests:
       type: array
-      default: ["e2e"]
-      description: "Subdirectories of Tests/Playwright, one job per suite (PLAYWRIGHT_SUITE)."
+      default: [{PLAYWRIGHT_URL: "primary"}]
+      description: "Jobs in parallel:matrix format: PLAYWRIGHT_SUITE (subdirectory of Tests/Playwright, all if unset) and PLAYWRIGHT_URL (primary, alias_<n>)."
+    enabled:
+      type: boolean
+      default: true
+      description: "Whether to run the tests."
 
 ---
 
@@ -29,10 +36,12 @@ test-playwright-$[[ inputs.environment ]]:
     name: ghcr.io/xima-media/playwright:1.59.1@sha256:57dfa6a0ed6045a5ee00de143413055973c7f569e30b03d59a912c73473dfb60
   dependencies:
     - deploy-$[[ inputs.environment ]]
-  rules: !reference ['deploy-$[[ inputs.environment ]]', rules]
+  rules:
+    - if: '"$[[ inputs.enabled ]]" != "true"'
+      when: never
+    - !reference ['deploy-$[[ inputs.environment ]]', rules]
   parallel:
-    matrix:
-      - PLAYWRIGHT_SUITE: $[[ inputs.suites ]]
+    matrix: $[[ inputs.tests ]]
   script:
     - playwright test
   artifacts:
