@@ -62,17 +62,14 @@ include:
 * docker.build
 * deploy.dev
 * test.dev
-  * `test-playwright-dev` ⚠️ needs configuration
 * deploy.test
   * `deploy-test`
 * test.test
-  * `test-playwright-test` ⚠️ needs configuration
 * release
 * deploy.live
   * `deploy-live`
   * `deploy-live-warmup`
 * test.live
-  * `test-playwright-live` ⚠️ needs configuration
 
 ## Reusable templates by stages
 
@@ -238,29 +235,31 @@ Jobs can be triggered manually from a pipeline using Gitlab UI with the same var
   * Run for branch name:
     * Branch that is already associated with host 'xyz'.
 
-### `test-playwright-<environment>`
+## Configure templates
 
-Runs Playwright against one environment, right after its deploy job `deploy-<environment>`: stage `test.<environment>`, the deploy job's rules, and its dotenv report with `ENVIRONMENT_URL_PRIMARY` and `ENVIRONMENT_URL_ALIASES` (comma-separated). Include the template once per environment; VM dev and docker-compose-deploy include it for their environments themselves (input `dev_playwright_tests` etc.).
+### `.test-playwright-base`
+
+Playwright tests against an environment, right after its deploy job. The deploy job's dotenv report provides `ENVIRONMENT_URL_PRIMARY` and `ENVIRONMENT_URL_ALIASES` (comma-separated); `PLAYWRIGHT_URL` names the URL to test (`primary`, `alias_0`, `alias_1`, ..., required in every job) and `PLAYWRIGHT_SUITE` the subdirectory of `Tests/Playwright` (all if unset). VM dev environments (sys-t3-ansible-management) create their job from the input `dev_playwright_tests`. For test and live, create the job in `.gitlab-ci.yml`:
 
 ```yaml
 include:
-  - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/<release>/test-playwright.yml'
-    inputs:
-      environment: test
-      tests:
-        - PLAYWRIGHT_SUITE: ["e2e", "accessibility"]
-          PLAYWRIGHT_URL: primary
-        - PLAYWRIGHT_SUITE: calendar
-          PLAYWRIGHT_URL: alias_0
+  - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/<release>/test-playwright-base.template.yml'
+
+test-playwright-test:
+  extends: .test-playwright-base
+  stage: test.test
+  dependencies:
+    - deploy-test
+  rules: !reference [deploy-test, rules]
+  parallel:
+    matrix:
+      - PLAYWRIGHT_SUITE: ["e2e", "accessibility"]
+        PLAYWRIGHT_URL: primary
+      - PLAYWRIGHT_SUITE: calendar
+        PLAYWRIGHT_URL: alias_0
 ```
 
-| Input | Default | Description |
-|---|---|---|
-| `environment` | - | `dev`, `test` or `live` |
-| `tests` | `[{PLAYWRIGHT_URL: "primary"}]` | Jobs in `parallel:matrix` format: `PLAYWRIGHT_SUITE` (subdirectory of `Tests/Playwright`, all if unset) and `PLAYWRIGHT_URL` (`primary`, `alias_0`, `alias_1`, ..., required in every entry) |
-| `enabled` | `true` | Whether to run the tests |
-
-`alias_<n>` is `TYPO3_ALIAS_URL_<n>` (VM) or the n-th entry of `hostname_aliases` (docker); keep the alias order the same in all environments. `playwright.config.js` resolves `PLAYWRIGHT_URL`, the same way in CI and locally with DDEV:
+`alias_<n>` is `TYPO3_ALIAS_URL_<n>` (VM) or the n-th entry of `hostname_aliases` (docker); keep the alias order the same in all environments. `playwright.config.js` resolves `PLAYWRIGHT_URL`, in CI from the dotenv report and locally from the DDEV hostnames:
 
 ```js
 const ciURLs = process.env.ENVIRONMENT_URL_PRIMARY
@@ -273,7 +272,7 @@ const urls = ciURLs ?? localURLs;
 // CI: PLAYWRIGHT_URL must be set; locally: primary unless set
 const selected = process.env.PLAYWRIGHT_URL ?? (ciURLs ? undefined : 'primary');
 if (!selected) {
-  throw new Error('PLAYWRIGHT_URL is not set - name it in every tests entry (primary, alias_<n>)');
+  throw new Error('PLAYWRIGHT_URL is not set - name it in every Playwright job (primary, alias_<n>)');
 }
 const match = /^(primary|alias_(\d+))$/.exec(selected);
 const baseURL = match && urls[match[2] === undefined ? 0 : Number(match[2]) + 1];
@@ -283,23 +282,4 @@ if (!baseURL) {
 
 const suite = process.env.PLAYWRIGHT_SUITE;
 const testDir = suite ? `Tests/Playwright/${suite}` : 'Tests/Playwright';
-```
-
-## Configure templates
-
-### `.test-playwright-base`
-
-Set `playwright.config.js` to use PLAYWRIGHT_BASE_URL and PLAYWRIGHT_SUITE environment variables. Then create a job in `.gitlab-ci.yml` from the template:
-
-```yaml
-test-playwright-e2e:
-  # set stage as required!
-  stage: mystage
-  extends: .test-playwright-base
-  variables:
-    PLAYWRIGHT_BASE_URL: "https://www.example.org"
-    PLAYWRIGHT_SUITE: e2e
-  # set rules according to stage!
-  rules:
-    - ...
 ```
