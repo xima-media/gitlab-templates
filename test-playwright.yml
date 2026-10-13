@@ -9,6 +9,7 @@
 #       environment: test
 #       tests:
 #         - PLAYWRIGHT_SUITE: ["e2e", "accessibility"]
+#           PLAYWRIGHT_URL: primary
 #         - PLAYWRIGHT_SUITE: calendar
 #           PLAYWRIGHT_URL: alias_0
 
@@ -21,7 +22,7 @@ spec:
     tests:
       type: array
       default: [{PLAYWRIGHT_URL: "primary"}]
-      description: "Jobs in parallel:matrix format: PLAYWRIGHT_SUITE (subdirectory of Tests/Playwright, all if unset) and PLAYWRIGHT_URL (primary, alias_<n>)."
+      description: "Jobs in parallel:matrix format: PLAYWRIGHT_SUITE (subdirectory of Tests/Playwright, all if unset) and PLAYWRIGHT_URL (primary, alias_<n>, required in every entry)."
     enabled:
       type: boolean
       default: true

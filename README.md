@@ -249,6 +249,7 @@ include:
       environment: test
       tests:
         - PLAYWRIGHT_SUITE: ["e2e", "accessibility"]
+          PLAYWRIGHT_URL: primary
         - PLAYWRIGHT_SUITE: calendar
           PLAYWRIGHT_URL: alias_0
 ```
@@ -256,7 +257,7 @@ include:
 | Input | Default | Description |
 |---|---|---|
 | `environment` | - | `dev`, `test` or `live` |
-| `tests` | `[{PLAYWRIGHT_URL: "primary"}]` | Jobs in `parallel:matrix` format: `PLAYWRIGHT_SUITE` (subdirectory of `Tests/Playwright`, all if unset) and `PLAYWRIGHT_URL` (`primary`, `alias_0`, `alias_1`, ...) |
+| `tests` | `[{PLAYWRIGHT_URL: "primary"}]` | Jobs in `parallel:matrix` format: `PLAYWRIGHT_SUITE` (subdirectory of `Tests/Playwright`, all if unset) and `PLAYWRIGHT_URL` (`primary`, `alias_0`, `alias_1`, ..., required in every entry) |
 | `enabled` | `true` | Whether to run the tests |
 
 `alias_<n>` is `TYPO3_ALIAS_URL_<n>` (VM) or the n-th entry of `hostname_aliases` (docker); keep the alias order the same in all environments. `playwright.config.js` resolves `PLAYWRIGHT_URL`, the same way in CI and locally with DDEV:
@@ -269,7 +270,11 @@ const localURLs = (process.env.VIRTUAL_HOST ?? '').split(',').filter(Boolean).ma
 const urls = ciURLs ?? localURLs;
 
 // primary = urls[0], alias_<n> = urls[n + 1]
-const selected = process.env.PLAYWRIGHT_URL ?? 'primary';
+// CI: PLAYWRIGHT_URL must be set; locally: primary unless set
+const selected = process.env.PLAYWRIGHT_URL ?? (ciURLs ? undefined : 'primary');
+if (!selected) {
+  throw new Error('PLAYWRIGHT_URL is not set - name it in every tests entry (primary, alias_<n>)');
+}
 const match = /^(primary|alias_(\d+))$/.exec(selected);
 const baseURL = match && urls[match[2] === undefined ? 0 : Number(match[2]) + 1];
 if (!baseURL) {
