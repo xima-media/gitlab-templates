@@ -30,7 +30,7 @@ test-typo3-settings:
       when: never
     - if: $CI_COMMIT_BRANCH == $BASE_BRANCH
     - if: $CI_COMMIT_AUTHOR != 'Renovate Bot <dev@t3.xima-services.net>' || $CI_COMMIT_BRANCH !~ /^renovate.*$/
-      changes:
-        - "config/system/*.php"
-        - "public/typo3conf/LocalConfiguration.php"
-        - "public/typo3conf/AdditionalConfiguration.php"
+#      changes:
+#        - "config/system/*.php"
+#        - "public/typo3conf/LocalConfiguration.php"
+#        - "public/typo3conf/AdditionalConfiguration.php"
