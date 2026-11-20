@@ -23,6 +23,8 @@ test-typo3-settings:
     - curl --noproxy '*' --fail --silent --show-error "$[[ inputs.checker_url ]]" > typo3-settings-checker.php
   script:
     - php typo3-settings-checker.php --skip="$[[ inputs.skip_rules ]]"
+  allow_failure:
+    exit_codes: [ 2 ]
   rules:
     - if: $RESET_JOB == 'true'
       when: never
