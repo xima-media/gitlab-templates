@@ -1,12 +1,28 @@
+# Usage: checks that the TYPO3 configuration in the repository only contains production-safe values.
+#
+# include:
+#   - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/<release>/test-typo3-settings.yml'
+#     inputs:
+#       skip_rules: "SYS.devIPmask,BE.lockSSL"
+
+spec:
+  inputs:
+    skip_rules:
+      type: string
+      default: ""
+      description: "Comma-separated rules to skip, e.g. 'SYS.devIPmask,BE.lockSSL'."
+    checker_url:
+      type: string
+      default: "https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/scripts/typo3-settings-checker.php"
+      description: "URL of typo3-settings-checker.php, e.g. to test a branch of this repository."
+---
 test-typo3-settings:
   stage: test
   needs: [ "build-php" ]
-  variables:
-    TYPO3_SETTINGS_CHECKER_URL: "https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/scripts/typo3-settings-checker.php"
   before_script:
-    - curl --noproxy '*' --fail --silent --show-error "$TYPO3_SETTINGS_CHECKER_URL" > typo3-settings-checker.php
+    - curl --noproxy '*' --fail --silent --show-error "$[[ inputs.checker_url ]]" > typo3-settings-checker.php
   script:
-    - php typo3-settings-checker.php --ci=typo3-settings-checker-report.xml
+    - php typo3-settings-checker.php --skip="$[[ inputs.skip_rules ]]" --ci=typo3-settings-checker-report.xml
   rules:
     - if: $RESET_JOB == 'true'
       when: never

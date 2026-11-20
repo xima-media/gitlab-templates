@@ -20,8 +20,10 @@ include:
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-unit.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-functional.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-typoscript-lint.yml'
-  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-typo3-settings.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-yaml-lint.yml'
+  - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-typo3-settings.yml'
+    inputs:
+      skip_rules: ""
   - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/deploy.yml'
     inputs:
       ci_server_url: https://git.example.com
@@ -121,15 +123,21 @@ The job reads the active `TYPO3_CONF_VARS` (core defaults, `settings.php`, `addi
 | `SYS.defaultScheme` | `https` |
 | `FE.disableNoCacheParameter` | `true` |
 
-No configuration is needed. To skip single rules in a project, override the script:
+No configuration is needed. The include takes these inputs:
+
+| Input | Default | Description |
+|---|---|---|
+| `skip_rules` | `""` | Comma-separated rules to skip, e.g. `SYS.devIPmask,BE.lockSSL` |
+| `checker_url` | script of the release tag | URL of `typo3-settings-checker.php`, e.g. to test a branch of this repository |
 
 ```yaml
-test-typo3-settings:
-  script:
-    - php typo3-settings-checker.php --skip=SYS.devIPmask,BE.lockSSL --ci=typo3-settings-checker-report.xml
+include:
+  - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-typo3-settings.yml'
+    inputs:
+      skip_rules: "SYS.devIPmask,BE.lockSSL"
 ```
 
-The script lives in [`scripts/typo3-settings-checker.php`](scripts/typo3-settings-checker.php); the job downloads it from the same release tag (`TYPO3_SETTINGS_CHECKER_URL`). To run it locally, copy it into the project root and run:
+The script lives in [`scripts/typo3-settings-checker.php`](scripts/typo3-settings-checker.php); the job downloads it from the release tag (`checker_url`). To run it locally, copy it into the project root and run:
 
 ```bash
 ddev exec php typo3-settings-checker.php
