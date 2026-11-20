@@ -34,11 +34,21 @@ class SettingsChecker
     public const EXIT_WARNING = 2;
 
     /**
-     * devIPmask entries that match every client address. Explicit IPs and partial wildcards are fine.
+     * IP list entries (devIPmask, reverseProxyIP) that match every client address. Explicit IPs and partial wildcards are fine.
      */
-    private const MATCH_ALL_DEV_IP_MASK_ENTRIES = ['*', '*.*.*.*', '0.0.0.0/0', '::/0'];
+    private const MATCH_ALL_IP_ENTRIES = ['*', '*.*.*.*', '0.0.0.0/0', '::/0'];
 
-    private const SECTIONS = ['BE', 'FE', 'SYS', 'MAIL', 'EXTENSIONS', 'HTTP', 'LOG', 'EXTCONF'];
+    private const SECTIONS = ['BE', 'FE', 'SYS', 'MAIL', 'EXTENSIONS', 'HTTP', 'LOG', 'EXTCONF', 'DB'];
+
+    /**
+     * File names the fileDenyPattern must reject (FileNameValidator::DEFAULT_FILE_DENY_PATTERN blocks them all)
+     */
+    private const DENIED_FILE_NAMES = ['shell.php', 'shell.php5', 'shell.phtml', 'shell.phar', 'shell.php.jpg', '.htaccess'];
+
+    /**
+     * Hosts that only exist in local DDEV/Docker setups
+     */
+    private const DEV_HOSTS = '/\.ddev\.site\b|\bhost\.docker\.internal\b|\bddev-[a-z0-9-]+-(db|web|solr|redis|elasticsearch)\b/i';
 
     private const HIDDEN_SUFFIX = '.settings-checker-hidden';
 
@@ -88,7 +98,11 @@ class SettingsChecker
             return false;
         }
 
-        $commands = $this->run('php vendor/bin/typo3 list --raw');
+        $commands = $this->run('php vendor/bin/typo3 list --raw', $exitCode);
+        if ($exitCode !== 0) {
+            $this->addError("The TYPO3 CLI does not start:\n" . implode("\n", $commands));
+            return false;
+        }
         if (!preg_grep('/^configuration:showactive\s/', $commands)) {
             $this->addError('Command configuration:showactive not available, the check requires helhum/typo3-console.');
             return false;
@@ -266,6 +280,16 @@ class SettingsChecker
      */
     private function getRules(): array
     {
+        $passwordPolicy = fn(string $section): Closure => function (array $c) use ($section): array {
+            $policy = (string)($c[$section]['passwordPolicy'] ?? 'default');
+            if ($policy === '') {
+                return ["is '', which disables the password policy"];
+            }
+            return isset($c['SYS']['passwordPolicies'][$policy])
+                ? []
+                : [sprintf("is '%s', which is not defined in SYS.passwordPolicies", $policy)];
+        };
+
         return [
             // --- Debug output: would expose internals to visitors ---
             'BE.debug' => fn(array $c): array => $this->isTruthy($c['BE']['debug'] ?? null)
@@ -273,7 +297,11 @@ class SettingsChecker
                 : [],
             'EXTENSIONS.*debug*' => function (array $c): array {
                 $failures = [];
-                $this->findTruthyDebugKeys($c['EXTENSIONS'] ?? [], 'EXTENSIONS', $failures);
+                foreach ($this->flatten($c['EXTENSIONS'] ?? [], 'EXTENSIONS') as $path => $value) {
+                    if (stripos(substr($path, strrpos($path, '.') + 1), 'debug') !== false && $this->isTruthy($value)) {
+                        $failures[] = sprintf('%s is %s, expected false', $path, var_export($value, true));
+                    }
+                }
                 return $failures;
             },
             'FE.debug' => fn(array $c): array => $this->isTruthy($c['FE']['debug'] ?? null)
@@ -281,7 +309,7 @@ class SettingsChecker
                 : [],
             'SYS.devIPmask' => function (array $c): array {
                 $value = (string)($c['SYS']['devIPmask'] ?? '');
-                return $this->isSafeDevIpMask($value)
+                return !$this->matchesEveryAddress($value)
                     ? []
                     : [sprintf("is '%s', which matches every client address; use explicit IPs instead", $value)];
             },
@@ -290,7 +318,7 @@ class SettingsChecker
                 if ($value === 0) {
                     return [];
                 }
-                if ($value === -1 && $this->isSafeDevIpMask((string)($c['SYS']['devIPmask'] ?? ''))) {
+                if ($value === -1 && !$this->matchesEveryAddress((string)($c['SYS']['devIPmask'] ?? ''))) {
                     return [];
                 }
                 return [sprintf('is %d, expected 0 (or -1 together with a devIPmask that does not match every address)', $value)];
@@ -303,9 +331,53 @@ class SettingsChecker
             },
 
             // --- Security: would open an attack vector ---
+            'BE.fileDenyPattern' => function (array $c): array {
+                if (!array_key_exists('fileDenyPattern', $c['BE'] ?? [])) {
+                    return []; // FileNameValidator::DEFAULT_FILE_DENY_PATTERN applies
+                }
+                $pattern = (string)$c['BE']['fileDenyPattern'];
+                // Same check as FileNameValidator::isValid()
+                $allowed = array_filter(
+                    self::DENIED_FILE_NAMES,
+                    static fn(string $file): bool => $pattern === '' || @preg_match('/(?:[[:cntrl:]]|' . $pattern . ')/iu', $file) !== 1
+                );
+                return $allowed === []
+                    ? []
+                    : [sprintf("'%s' does not block %s", $pattern, implode(', ', $allowed))];
+            },
             'BE.lockSSL' => fn(array $c): array => $this->isTruthy($c['BE']['lockSSL'] ?? null)
                 ? []
                 : [sprintf('is %s, expected true', var_export($c['BE']['lockSSL'] ?? null, true))],
+            'BE.passwordPolicy' => $passwordPolicy('BE'),
+            'FE.pageNotFoundOnCHashError' => fn(array $c): array => $this->isTruthy($c['FE']['pageNotFoundOnCHashError'] ?? true)
+                ? []
+                : [sprintf('is %s, expected true (otherwise invalid cHash requests get rendered and cached)', var_export($c['FE']['pageNotFoundOnCHashError'], true))],
+            'FE.passwordPolicy' => $passwordPolicy('FE'),
+            'HTTP.verify' => fn(array $c): array => $this->isTruthy($c['HTTP']['verify'] ?? true)
+                ? []
+                : [sprintf('is %s, TLS certificates of outgoing requests would not be verified', var_export($c['HTTP']['verify'], true))],
+            'SYS.features.security' => function (array $c): array {
+                $features = $c['SYS']['features'] ?? [];
+                $failures = [];
+                if (!$this->isTruthy($features['security.backend.enforceReferrer'] ?? true)) {
+                    $failures[] = 'security.backend.enforceReferrer is disabled, expected true';
+                }
+                foreach (['security.frontend.allowInsecureSiteResolutionByQueryParameters', 'security.frontend.allowInsecureFrameOptionInShowImageController'] as $feature) {
+                    if ($this->isTruthy($features[$feature] ?? false)) {
+                        $failures[] = sprintf('%s is enabled, expected false', $feature);
+                    }
+                }
+                return $failures;
+            },
+            'SYS.reverseProxyIP' => $this->warning(function (array $c): array {
+                $value = (string)($c['SYS']['reverseProxyIP'] ?? '');
+                return $this->matchesEveryAddress($value)
+                    ? [sprintf("is '%s', every client could fake its IP via X-Forwarded-For; use the proxy IPs instead", $value)]
+                    : [];
+            }),
+            'SYS.systemMaintainers' => $this->warning(fn(array $c): array => empty($c['SYS']['systemMaintainers'])
+                ? ['is empty, every admin is a system maintainer (Install Tool, settings)']
+                : []),
             'SYS.trustedHostsPattern' => function (array $c): array {
                 $value = (string)($c['SYS']['trustedHostsPattern'] ?? 'SERVER_NAME');
                 if ($value === 'SERVER_NAME') {
@@ -317,9 +389,48 @@ class SettingsChecker
             },
 
             // --- Operation: Live would not work (correctly) ---
+            '*.devHosts' => $this->warning(function (array $c): array {
+                $failures = [];
+                foreach (['DB', 'EXTENSIONS', 'HTTP'] as $section) {
+                    foreach ($this->flatten($c[$section] ?? [], $section) as $path => $value) {
+                        if (is_string($value) && preg_match(self::DEV_HOSTS, $value)) {
+                            $failures[] = sprintf("%s is '%s', which only exists locally", $path, $value);
+                        }
+                    }
+                }
+                foreach ($c['DB']['Connections'] ?? [] as $name => $connection) {
+                    if (($connection['host'] ?? '') === 'db') {
+                        $failures[] = sprintf("DB.Connections.%s.host is 'db', the DDEV database container", $name);
+                    }
+                }
+                return $failures;
+            }),
+            'BE.adminOnly' => fn(array $c): array => (int)($c['BE']['adminOnly'] ?? 0) === 0
+                ? []
+                : [sprintf('is %d, expected 0 (otherwise editors are locked out of the backend)', $c['BE']['adminOnly'])],
+            'FE.pageUnavailable_force' => fn(array $c): array => $this->isTruthy($c['FE']['pageUnavailable_force'] ?? false)
+                ? [sprintf('is %s, the whole frontend would answer with 503', var_export($c['FE']['pageUnavailable_force'], true))]
+                : [],
             'HTTP.timeout' => fn(array $c): array => (float)($c['HTTP']['timeout'] ?? 0) > 0
                 ? []
                 : [sprintf('is %s, expected a timeout > 0 (0 waits forever)', var_export($c['HTTP']['timeout'] ?? null, true))],
+            'LOG.debug' => $this->warning(function (array $c): array {
+                $failures = [];
+                foreach ($this->findLogWriterConfigurations($c['LOG'] ?? [], 'LOG') as $path => $levels) {
+                    foreach ($levels as $level => $writers) {
+                        if (!in_array(strtolower((string)$level), ['debug', '7'], true)) {
+                            continue;
+                        }
+                        foreach ((array)$writers as $writer => $options) {
+                            // EXT:adminpanel logs into memory for its own panel, nothing is written
+                            if (!str_ends_with((string)$writer, 'InMemoryLogWriter') && !$this->isTruthy($options['disabled'] ?? false)) {
+                                $failures[] = sprintf('%s.%s: writer %s is enabled', $path, $level, ltrim((string)$writer, '\\'));
+                            }
+                        }
+                    }
+                }
+                return $failures;
+            }),
             'LOG.deprecations' => function (array $c): array {
                 $failures = [];
                 foreach ($c['LOG']['TYPO3']['CMS']['deprecations']['writerConfiguration'] ?? [] as $level => $writers) {
@@ -331,6 +442,9 @@ class SettingsChecker
                 }
                 return $failures;
             },
+            'MAIL.defaultMailFromAddress' => $this->warning(fn(array $c): array => filter_var($c['MAIL']['defaultMailFromAddress'] ?? '', FILTER_VALIDATE_EMAIL)
+                ? []
+                : [sprintf("is '%s', expected a valid e-mail address (otherwise no-reply@<hostname> is used)", $c['MAIL']['defaultMailFromAddress'] ?? '')]),
             'MAIL.transport' => function (array $c): array {
                 $transport = (string)($c['MAIL']['transport'] ?? '');
                 if (in_array(strtolower($transport), ['mbox', 'null'], true) || str_ends_with($transport, 'NullTransport')) {
@@ -342,6 +456,16 @@ class SettingsChecker
                 }
                 return [];
             },
+            'SYS.caching' => $this->warning(function (array $c): array {
+                $failures = [];
+                foreach ($c['SYS']['caching']['cacheConfigurations'] ?? [] as $cache => $configuration) {
+                    $backend = ltrim((string)($configuration['backend'] ?? ''), '\\');
+                    if (str_ends_with($backend, 'NullBackend')) {
+                        $failures[] = sprintf('cache %s uses %s, nothing would be cached', $cache, $backend);
+                    }
+                }
+                return $failures;
+            }),
 
             // --- Project standards: XIMA conventions ---
             'BE.warning_email_addr' => fn(array $c): array => filter_var($c['BE']['warning_email_addr'] ?? '', FILTER_VALIDATE_EMAIL)
@@ -390,32 +514,52 @@ class SettingsChecker
         return (bool)$value;
     }
 
-    private function isSafeDevIpMask(string $value): bool
+    private function matchesEveryAddress(string $ipList): bool
     {
-        foreach (explode(',', $value) as $entry) {
-            if (in_array(trim($entry), self::MATCH_ALL_DEV_IP_MASK_ENTRIES, true)) {
-                return false;
+        foreach (explode(',', $ipList) as $entry) {
+            if (in_array(trim($entry), self::MATCH_ALL_IP_ENTRIES, true)) {
+                return true;
             }
         }
-        return true;
+        return false;
     }
 
     /**
-     * @param string[] $failures
+     * Flatten a configuration array to [dotted path => scalar value]
+     *
+     * @return array<string, mixed>
      */
-    private function findTruthyDebugKeys(mixed $configuration, string $path, array &$failures): void
+    private function flatten(mixed $configuration, string $path): array
     {
         if (!is_array($configuration)) {
-            return;
+            return [$path => $configuration];
         }
+        $values = [];
         foreach ($configuration as $key => $value) {
-            $currentPath = $path . '.' . $key;
-            if (is_array($value)) {
-                $this->findTruthyDebugKeys($value, $currentPath, $failures);
-            } elseif (stripos((string)$key, 'debug') !== false && $this->isTruthy($value)) {
-                $failures[] = sprintf('%s is %s, expected false', $currentPath, var_export($value, true));
+            $values += $this->flatten($value, $path . '.' . $key);
+        }
+        return $values;
+    }
+
+    /**
+     * Find all "writerConfiguration" arrays below LOG
+     *
+     * @return array<string, array> [dotted path => writerConfiguration]
+     */
+    private function findLogWriterConfigurations(mixed $configuration, string $path): array
+    {
+        if (!is_array($configuration)) {
+            return [];
+        }
+        $found = [];
+        foreach ($configuration as $key => $value) {
+            if ($key === 'writerConfiguration' && is_array($value)) {
+                $found[$path . '.' . $key] = $value;
+            } else {
+                $found += $this->findLogWriterConfigurations($value, $path . '.' . $key);
             }
         }
+        return $found;
     }
 
     /**

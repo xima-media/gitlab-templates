@@ -103,27 +103,44 @@ test-composer-sitepackage:
 
 Checks that the TYPO3 configuration in the repository only contains production-safe values. `config/system/settings.php` and `additional.php` are deployed and act as fallback on every instance, including Live, whenever the environment sets nothing else. Debug settings belong into `.env` (local, dev) only.
 
-The job reads the active `TYPO3_CONF_VARS` (core defaults, `settings.php`, `additional.php`, `ext_localconf.php`) via `typo3 configuration:showactive` in `Production` context, so the project needs `helhum/typo3-console`. While reading, it temporarily moves the dotenv files (`.env`, `.env.dist`, `.env.local`, `.env.dev`, `.env.dev.local`) aside and restores them afterwards, because a committed local `.env` is not deployed. It checks these rules (⚠ = warning only):
+The job reads the active `TYPO3_CONF_VARS` (core defaults, `settings.php`, `additional.php`, `ext_localconf.php`) via `typo3 configuration:showactive` in `Production` context, so the project needs `helhum/typo3-console`. While reading, it temporarily moves the dotenv files (`.env`, `.env.dist`, `.env.local`, `.env.dev`, `.env.dev.local`) aside and restores them afterwards, because a committed local `.env` is not deployed. It checks these rules, grouped by purpose (⚠ = warning only):
 
 | Rule | Requirement |
 |---|---|
+| **Debug output** | |
 | `BE.debug`, `FE.debug` | `false` |
+| `EXTENSIONS.*debug*` | every extension setting with `debug` in its key is falsy |
 | `SYS.devIPmask` | no entry that matches every address (`*`, `*.*.*.*`, `0.0.0.0/0`, `::/0`); explicit IPs are fine |
 | `SYS.displayErrors` | `0` (or `-1` with a `devIPmask` without such an entry) |
 | `SYS.productionExceptionHandler` | not the `DebugExceptionHandler` |
-| `SYS.trustedHostsPattern` | does not accept any host (e.g. `.*`) |
+| **Security** | |
+| `BE.fileDenyPattern` | still blocks `.php`, `.php5`, `.phtml`, `.phar`, `.php.jpg`, `.htaccess` (unset = core default, fine) |
 | `BE.lockSSL` | `true` |
-| `MAIL.transport` | not `mbox`/`null`, no SMTP mail catcher (Mailpit, MailHog, port 1025) |
-| `EXTENSIONS.*debug*` | every extension setting with `debug` in its key is falsy |
+| `BE.passwordPolicy`, `FE.passwordPolicy` | not `''` and defined in `SYS.passwordPolicies` |
+| `FE.pageNotFoundOnCHashError` | `true` |
+| `HTTP.verify` | not `false` (TLS verification of outgoing requests) |
+| `SYS.features.security` | `security.backend.enforceReferrer` on, `security.frontend.allowInsecure*` off |
+| `SYS.reverseProxyIP` ⚠ | no entry that matches every address |
+| `SYS.systemMaintainers` ⚠ | not empty |
+| `SYS.trustedHostsPattern` | does not accept any host (e.g. `.*`) |
+| **Operation** | |
+| `*.devHosts` ⚠ | no DDEV/Docker hosts (`*.ddev.site`, `host.docker.internal`, `ddev-*-db`, DB host `db`) in `DB`, `EXTENSIONS`, `HTTP` |
+| `BE.adminOnly` | `0` (`1` also blocks the TYPO3 CLI, the job then fails with that error) |
+| `FE.pageUnavailable_force` | `false` |
 | `HTTP.timeout` | `> 0` (core default `0` waits forever) |
+| `LOG.debug` ⚠ | no enabled log writer at level `debug` |
 | `LOG.deprecations` | deprecation log writers disabled |
-| `LOG.Scheduler` ⚠ | an enabled `FileWriter` with `logFile` in `LOG.TYPO3.CMS.Scheduler.writerConfiguration` |
+| `MAIL.defaultMailFromAddress` ⚠ | a valid e-mail address |
+| `MAIL.transport` | not `mbox`/`null`, no SMTP mail catcher (Mailpit, MailHog, port 1025) |
+| `SYS.caching` ⚠ | no cache with `NullBackend` |
+| **Project standards** | |
 | `BE.warning_email_addr` | a valid e-mail address |
 | `EXTCONF.lang.availableLanguages` | contains `de` |
-| `SYS.defaultScheme` | `https` |
 | `FE.disableNoCacheParameter` | `true` |
+| `LOG.Scheduler` ⚠ | an enabled `FileWriter` with `logFile` in `LOG.TYPO3.CMS.Scheduler.writerConfiguration` |
+| `SYS.defaultScheme` | `https` |
 
-A failing rule fails the job. A failing warning rule (⚠) or a skipped rule is listed in yellow (`WARN`/`SKIP`) and the job passes with a warning (exit code 2, `allow_failure: exit_codes`).
+A failing rule fails the job. A failing warning rule (⚠) or a skipped rule is listed as `WARN` (orange) or `SKIP` (yellow) and the job passes with a warning (exit code 2, `allow_failure: exit_codes`).
 
 No configuration is needed. The include takes these inputs:
 
