@@ -267,9 +267,15 @@ class SettingsChecker
     private function getRules(): array
     {
         return [
+            // --- Debug output: would expose internals to visitors ---
             'BE.debug' => fn(array $c): array => $this->isTruthy($c['BE']['debug'] ?? null)
                 ? [sprintf('is %s, expected false', var_export($c['BE']['debug'], true))]
                 : [],
+            'EXTENSIONS.*debug*' => function (array $c): array {
+                $failures = [];
+                $this->findTruthyDebugKeys($c['EXTENSIONS'] ?? [], 'EXTENSIONS', $failures);
+                return $failures;
+            },
             'FE.debug' => fn(array $c): array => $this->isTruthy($c['FE']['debug'] ?? null)
                 ? [sprintf('is %s, expected false', var_export($c['FE']['debug'], true))]
                 : [],
@@ -295,6 +301,11 @@ class SettingsChecker
                     ? [sprintf("is '%s', the debug exception handler shows stack traces to every visitor", $value)]
                     : [];
             },
+
+            // --- Security: would open an attack vector ---
+            'BE.lockSSL' => fn(array $c): array => $this->isTruthy($c['BE']['lockSSL'] ?? null)
+                ? []
+                : [sprintf('is %s, expected true', var_export($c['BE']['lockSSL'] ?? null, true))],
             'SYS.trustedHostsPattern' => function (array $c): array {
                 $value = (string)($c['SYS']['trustedHostsPattern'] ?? 'SERVER_NAME');
                 if ($value === 'SERVER_NAME') {
@@ -304,25 +315,8 @@ class SettingsChecker
                 $matchesAnyHost = @preg_match('/^' . $value . '$/i', 'attacker.invalid') === 1;
                 return $matchesAnyHost ? [sprintf("is '%s', which accepts any host header", $value)] : [];
             },
-            'BE.lockSSL' => fn(array $c): array => $this->isTruthy($c['BE']['lockSSL'] ?? null)
-                ? []
-                : [sprintf('is %s, expected true', var_export($c['BE']['lockSSL'] ?? null, true))],
-            'MAIL.transport' => function (array $c): array {
-                $transport = (string)($c['MAIL']['transport'] ?? '');
-                if (in_array(strtolower($transport), ['mbox', 'null'], true) || str_ends_with($transport, 'NullTransport')) {
-                    return [sprintf("is '%s', mails would not be sent", $transport)];
-                }
-                $server = (string)($c['MAIL']['transport_smtp_server'] ?? '');
-                if ($transport === 'smtp' && preg_match(self::DEV_MAIL_HOSTS, $server)) {
-                    return [sprintf("SMTP server '%s' looks like a local mail catcher", $server)];
-                }
-                return [];
-            },
-            'EXTENSIONS.*debug*' => function (array $c): array {
-                $failures = [];
-                $this->findTruthyDebugKeys($c['EXTENSIONS'] ?? [], 'EXTENSIONS', $failures);
-                return $failures;
-            },
+
+            // --- Operation: Live would not work (correctly) ---
             'HTTP.timeout' => fn(array $c): array => (float)($c['HTTP']['timeout'] ?? 0) > 0
                 ? []
                 : [sprintf('is %s, expected a timeout > 0 (0 waits forever)', var_export($c['HTTP']['timeout'] ?? null, true))],
@@ -337,6 +331,28 @@ class SettingsChecker
                 }
                 return $failures;
             },
+            'MAIL.transport' => function (array $c): array {
+                $transport = (string)($c['MAIL']['transport'] ?? '');
+                if (in_array(strtolower($transport), ['mbox', 'null'], true) || str_ends_with($transport, 'NullTransport')) {
+                    return [sprintf("is '%s', mails would not be sent", $transport)];
+                }
+                $server = (string)($c['MAIL']['transport_smtp_server'] ?? '');
+                if ($transport === 'smtp' && preg_match(self::DEV_MAIL_HOSTS, $server)) {
+                    return [sprintf("SMTP server '%s' looks like a local mail catcher", $server)];
+                }
+                return [];
+            },
+
+            // --- Project standards: XIMA conventions ---
+            'BE.warning_email_addr' => fn(array $c): array => filter_var($c['BE']['warning_email_addr'] ?? '', FILTER_VALIDATE_EMAIL)
+                ? []
+                : [sprintf("is '%s', expected a valid e-mail address", $c['BE']['warning_email_addr'] ?? '')],
+            'EXTCONF.lang.availableLanguages' => fn(array $c): array => in_array('de', (array)($c['EXTCONF']['lang']['availableLanguages'] ?? []), true)
+                ? []
+                : ["expected 'de' in the list of language packs"],
+            'FE.disableNoCacheParameter' => fn(array $c): array => $this->isTruthy($c['FE']['disableNoCacheParameter'] ?? null)
+                ? []
+                : [sprintf('is %s, expected true', var_export($c['FE']['disableNoCacheParameter'] ?? null, true))],
             'LOG.Scheduler' => $this->warning(function (array $c): array {
                 foreach ($c['LOG']['TYPO3']['CMS']['Scheduler']['writerConfiguration'] ?? [] as $writers) {
                     foreach ((array)$writers as $writer => $options) {
@@ -350,18 +366,9 @@ class SettingsChecker
                 }
                 return ['expected an enabled FileWriter with logFile in LOG.TYPO3.CMS.Scheduler.writerConfiguration'];
             }),
-            'BE.warning_email_addr' => fn(array $c): array => filter_var($c['BE']['warning_email_addr'] ?? '', FILTER_VALIDATE_EMAIL)
-                ? []
-                : [sprintf("is '%s', expected a valid e-mail address", $c['BE']['warning_email_addr'] ?? '')],
-            'EXTCONF.lang.availableLanguages' => fn(array $c): array => in_array('de', (array)($c['EXTCONF']['lang']['availableLanguages'] ?? []), true)
-                ? []
-                : ["expected 'de' in the list of language packs"],
             'SYS.defaultScheme' => fn(array $c): array => ($c['SYS']['defaultScheme'] ?? '') === 'https'
                 ? []
                 : [sprintf("is '%s', expected 'https'", $c['SYS']['defaultScheme'] ?? '')],
-            'FE.disableNoCacheParameter' => fn(array $c): array => $this->isTruthy($c['FE']['disableNoCacheParameter'] ?? null)
-                ? []
-                : [sprintf('is %s, expected true', var_export($c['FE']['disableNoCacheParameter'] ?? null, true))],
         ];
     }
 
