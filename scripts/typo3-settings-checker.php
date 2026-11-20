@@ -4,12 +4,13 @@
 /**
  * TYPO3 Settings Checker
  *
- * Checks that the TYPO3 configuration committed to the repository (settings.php + additional.php, merged with the
- * core defaults) only contains production-safe values. The repository configuration is deployed and acts as the
+ * Checks that the TYPO3 configuration committed to the repository (settings.php, additional.php, ext_localconf.php,
+ * merged with the core defaults) only contains production-safe values. The repository configuration is deployed and acts as the
  * fallback on every instance, including Live, whenever the environment does not set anything else.
  *
- * The configuration is evaluated in "Production" context without any environment overrides: all
- * TYPO3_CONF_VARS__* variables (e.g. from a local .env loaded by helhum/dotenv-connector) are ignored.
+ * The active configuration is read via "typo3 configuration:showactive" (requires helhum/typo3-console) in
+ * "Production" context. The dotenv files (.env, .env.dist, .env.local, .env.dev, .env.dev.local) are moved aside while
+ * reading and restored afterwards, because they hold local values and are not deployed.
  *
  * Usage (from the project root, after composer install):
  *   ./typo3-settings-checker.php
@@ -29,6 +30,10 @@ class SettingsChecker
      */
     private const MATCH_ALL_DEV_IP_MASK_ENTRIES = ['*', '*.*.*.*', '0.0.0.0/0', '::/0'];
 
+    private const SECTIONS = ['BE', 'FE', 'SYS', 'MAIL', 'EXTENSIONS'];
+
+    private const HIDDEN_SUFFIX = '.settings-checker-hidden';
+
     private const DEV_MAIL_HOSTS = '/(^|[^a-z0-9])(mailpit|mailhog|mailcatcher)([^a-z0-9]|$)|:1025$/i';
 
     private string $rootDir;
@@ -40,6 +45,13 @@ class SettingsChecker
 
     /** @var string[] */
     private array $errors = [];
+
+    /**
+     * Dotenv files moved aside: [hidden path => original path]
+     *
+     * @var array<string, string>
+     */
+    private array $hiddenFiles = [];
 
     /**
      * Results per rule: [ruleName => ['skipped' => bool, 'failures' => string[]]]
@@ -75,8 +87,14 @@ class SettingsChecker
             }
         }
 
-        if (!is_file($this->rootDir . '/vendor/autoload.php')) {
-            $this->addError('vendor/autoload.php not found. Run the script from the project root after composer install.');
+        if (!is_file($this->rootDir . '/vendor/bin/typo3')) {
+            $this->addError('vendor/bin/typo3 not found. Run the script from the project root after composer install.');
+            return false;
+        }
+
+        exec('php vendor/bin/typo3 list --raw 2>&1', $commands);
+        if (!preg_grep('/^configuration:showactive\s/', $commands)) {
+            $this->addError('Command configuration:showactive not available, the check requires helhum/typo3-console.');
             return false;
         }
 
@@ -137,45 +155,89 @@ class SettingsChecker
     }
 
     /**
-     * Load DefaultConfiguration + settings.php + additional.php the same way the TYPO3 bootstrap does, but in
-     * Production context and without any TYPO3_CONF_VARS__* environment overrides.
+     * Read the active configuration via typo3-console (core defaults, settings.php, additional.php, ext_localconf.php)
+     * in Production context. The dotenv files are moved aside meanwhile, they hold local values and are not deployed.
      */
     private function loadConfiguration(): array
     {
-        // Loads a local .env as well (helhum/dotenv-connector), therefore sanitize the environment afterwards
-        require $this->rootDir . '/vendor/autoload.php';
+        putenv('TYPO3_CONTEXT=Production');
 
-        $this->sanitizeEnvironment();
+        try {
+            $this->hideDotEnvFiles();
+            $configuration = [];
+            foreach (self::SECTIONS as $section) {
+                exec('php vendor/bin/typo3 configuration:showactive ' . escapeshellarg($section) . ' --json 2>&1', $output, $exitCode);
+                $json = implode("\n", $output);
+                $output = [];
+                if ($exitCode !== 0) {
+                    // Unset sections ("No configuration found") are fine, everything else is an error
+                    if (str_contains($json, 'No configuration found')) {
+                        continue;
+                    }
+                    throw new RuntimeException("configuration:showactive {$section} failed: {$json}");
+                }
+                $configuration[$section] = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+            }
+        } finally {
+            $this->restoreDotEnvFiles();
+        }
 
-        \TYPO3\CMS\Core\Core\SystemEnvironmentBuilder::run(0, \TYPO3\CMS\Core\Core\SystemEnvironmentBuilder::REQUESTTYPE_CLI);
-
-        $configurationManager = new \TYPO3\CMS\Core\Configuration\ConfigurationManager();
-        $this->printMessage(
-            'Checking ' . $configurationManager->getSystemConfigurationFileLocation(true) . ' (+ additional configuration, defaults) in context '
-            . \TYPO3\CMS\Core\Core\Environment::getContext(),
-            self::INFO_COLOR
-        );
-        $configurationManager->exportConfiguration();
-
-        return $GLOBALS['TYPO3_CONF_VARS'];
+        return $configuration;
     }
 
-    private function sanitizeEnvironment(): void
+    /**
+     * Rename all files helhum/dotenv-connector (Symfony Dotenv::loadEnv()) would load: the base file, its .dist
+     * fallback, .local and the files for the default APP_ENV "dev".
+     */
+    private function hideDotEnvFiles(): void
     {
-        $keys = array_unique(array_merge(array_keys($_SERVER), array_keys($_ENV), array_keys(getenv())));
-        foreach ($keys as $key) {
-            if (!is_string($key)) {
-                continue;
+        $composer = json_decode((string)file_get_contents($this->rootDir . '/composer.json'), true) ?: [];
+        $base = $composer['extra']['helhum/dotenv-connector']['env-file'] ?? '.env';
+
+        foreach (['', '.dist', '.local', '.dev', '.dev.local'] as $suffix) {
+            $file = $this->rootDir . '/' . $base . $suffix;
+            $hidden = $file . self::HIDDEN_SUFFIX;
+
+            // Leftover from an aborted run
+            if (is_file($hidden)) {
+                if (file_exists($file)) {
+                    throw new RuntimeException("Both {$base}{$suffix} and {$base}{$suffix}" . self::HIDDEN_SUFFIX . ' exist, resolve this manually.');
+                }
+                rename($hidden, $file);
             }
-            $isOverride = str_starts_with($key, 'TYPO3_CONF_VARS__') || str_starts_with($key, 'REDIRECT_TYPO3_CONF_VARS__');
-            if ($isOverride || in_array($key, ['TYPO3_CONTEXT', 'REDIRECT_TYPO3_CONTEXT'], true)) {
-                unset($_SERVER[$key], $_ENV[$key]);
-                putenv($key);
+
+            if (is_file($file)) {
+                if (!rename($file, $hidden)) {
+                    throw new RuntimeException("Could not move {$base}{$suffix} aside.");
+                }
+                $this->hiddenFiles[$hidden] = $file;
             }
         }
 
-        putenv('TYPO3_CONTEXT=Production');
-        $_SERVER['TYPO3_CONTEXT'] = $_ENV['TYPO3_CONTEXT'] = 'Production';
+        if ($this->hiddenFiles !== []) {
+            register_shutdown_function([$this, 'restoreDotEnvFiles']);
+            if (function_exists('pcntl_signal')) {
+                pcntl_async_signals(true);
+                foreach ([SIGINT, SIGTERM] as $signal) {
+                    pcntl_signal($signal, function () {
+                        $this->restoreDotEnvFiles();
+                        exit(1);
+                    });
+                }
+            }
+            $this->printMessage(
+                'Temporarily moved aside: ' . implode(', ', array_map('basename', $this->hiddenFiles)),
+                self::INFO_COLOR
+            );
+        }
+    }
+
+    public function restoreDotEnvFiles(): void
+    {
+        foreach ($this->hiddenFiles as $hidden => $file) {
+            rename($hidden, $file);
+            unset($this->hiddenFiles[$hidden]);
+        }
     }
 
     /**

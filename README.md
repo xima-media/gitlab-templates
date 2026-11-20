@@ -101,7 +101,7 @@ test-composer-sitepackage:
 
 Checks that the TYPO3 configuration in the repository only contains production-safe values. `config/system/settings.php` and `additional.php` are deployed and act as fallback on every instance, including Live, whenever the environment sets nothing else. Debug settings belong into `.env` (local, dev) only.
 
-The job loads the effective `TYPO3_CONF_VARS` (core defaults, `settings.php`, `additional.php`) in `Production` context and ignores all `TYPO3_CONF_VARS__*` environment variables, so a local `.env` committed to the repository does not count. It fails on:
+The job reads the active `TYPO3_CONF_VARS` (core defaults, `settings.php`, `additional.php`, `ext_localconf.php`) via `typo3 configuration:showactive` in `Production` context, so the project needs `helhum/typo3-console`. While reading, it temporarily moves the dotenv files (`.env`, `.env.dist`, `.env.local`, `.env.dev`, `.env.dev.local`) aside and restores them afterwards, because a committed local `.env` is not deployed. It fails on:
 
 | Rule | Requirement |
 |---|---|
@@ -134,6 +134,8 @@ The script lives in [`scripts/typo3-settings-checker.php`](scripts/typo3-setting
 ```bash
 ddev exec php typo3-settings-checker.php
 ```
+
+The local site may fail for the second or two the dotenv files are moved aside. In Development context TYPO3 may use a cached `ext_localconf.php`; run `ddev typo3 cache:flush` after changing one.
 
 ### `build-node`
 
