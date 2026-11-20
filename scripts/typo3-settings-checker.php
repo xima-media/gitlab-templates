@@ -240,6 +240,45 @@ class SettingsChecker
                 $this->findTruthyDebugKeys($c['EXTENSIONS'] ?? [], 'EXTENSIONS', $failures);
                 return $failures;
             },
+            'HTTP.timeout' => fn(array $c): array => (float)($c['HTTP']['timeout'] ?? 0) > 0
+                ? []
+                : [sprintf('is %s, expected a timeout > 0 (0 waits forever)', var_export($c['HTTP']['timeout'] ?? null, true))],
+            'LOG.deprecations' => function (array $c): array {
+                $failures = [];
+                foreach ($c['LOG']['TYPO3']['CMS']['deprecations']['writerConfiguration'] ?? [] as $level => $writers) {
+                    foreach ((array)$writers as $writer => $options) {
+                        if (!$this->isTruthy($options['disabled'] ?? false)) {
+                            $failures[] = sprintf('writer %s (%s) is enabled, expected disabled', ltrim((string)$writer, '\\'), $level);
+                        }
+                    }
+                }
+                return $failures;
+            },
+            'LOG.Scheduler' => function (array $c): array {
+                foreach ($c['LOG']['TYPO3']['CMS']['Scheduler']['writerConfiguration'] ?? [] as $writers) {
+                    foreach ((array)$writers as $writer => $options) {
+                        if (str_ends_with((string)$writer, 'FileWriter')
+                            && !$this->isTruthy($options['disabled'] ?? false)
+                            && !empty($options['logFile'])
+                        ) {
+                            return [];
+                        }
+                    }
+                }
+                return ['expected an enabled FileWriter with logFile in LOG.TYPO3.CMS.Scheduler.writerConfiguration'];
+            },
+            'BE.warning_email_addr' => fn(array $c): array => filter_var($c['BE']['warning_email_addr'] ?? '', FILTER_VALIDATE_EMAIL)
+                ? []
+                : [sprintf("is '%s', expected a valid e-mail address", $c['BE']['warning_email_addr'] ?? '')],
+            'EXTCONF.lang.availableLanguages' => fn(array $c): array => in_array('de', (array)($c['EXTCONF']['lang']['availableLanguages'] ?? []), true)
+                ? []
+                : ["expected 'de' in the list of language packs"],
+            'SYS.defaultScheme' => fn(array $c): array => ($c['SYS']['defaultScheme'] ?? '') === 'https'
+                ? []
+                : [sprintf("is '%s', expected 'https'", $c['SYS']['defaultScheme'] ?? '')],
+            'FE.disableNoCacheParameter' => fn(array $c): array => $this->isTruthy($c['FE']['disableNoCacheParameter'] ?? null)
+                ? []
+                : [sprintf('is %s, expected true', var_export($c['FE']['disableNoCacheParameter'] ?? null, true))],
         ];
     }
 

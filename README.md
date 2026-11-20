@@ -113,6 +113,13 @@ The job loads the effective `TYPO3_CONF_VARS` (core defaults, `settings.php`, `a
 | `BE.lockSSL` | `true` |
 | `MAIL.transport` | not `mbox`/`null`, no SMTP mail catcher (Mailpit, MailHog, port 1025) |
 | `EXTENSIONS.*debug*` | every extension setting with `debug` in its key is falsy |
+| `HTTP.timeout` | `> 0` (core default `0` waits forever) |
+| `LOG.deprecations` | deprecation log writers disabled |
+| `LOG.Scheduler` | an enabled `FileWriter` with `logFile` in `LOG.TYPO3.CMS.Scheduler.writerConfiguration` |
+| `BE.warning_email_addr` | a valid e-mail address |
+| `EXTCONF.lang.availableLanguages` | contains `de` |
+| `SYS.defaultScheme` | `https` |
+| `FE.disableNoCacheParameter` | `true` |
 
 No configuration is needed. To skip single rules in a project, override the script:
 
