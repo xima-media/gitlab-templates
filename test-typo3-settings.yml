@@ -1,0 +1,24 @@
+test-typo3-settings:
+  stage: test
+  needs: [ "build-php" ]
+  variables:
+    TYPO3_SETTINGS_CHECKER_URL: "https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/scripts/typo3-settings-checker.php"
+  before_script:
+    - curl --noproxy '*' --fail --silent --show-error "$TYPO3_SETTINGS_CHECKER_URL" > typo3-settings-checker.php
+  script:
+    - php typo3-settings-checker.php --ci=typo3-settings-checker-report.xml
+  rules:
+    - if: $RESET_JOB == 'true'
+      when: never
+    - if: $CI_COMMIT_TAG && $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+      when: never
+    - if: $CI_COMMIT_BRANCH == $BASE_BRANCH
+    - if: $CI_COMMIT_AUTHOR != 'Renovate Bot <dev@t3.xima-services.net>' || $CI_COMMIT_BRANCH !~ /^renovate.*$/
+      changes:
+        - "config/system/*.php"
+        - "public/typo3conf/LocalConfiguration.php"
+        - "public/typo3conf/AdditionalConfiguration.php"
+  artifacts:
+    when: always
+    reports:
+      junit: typo3-settings-checker-report.xml

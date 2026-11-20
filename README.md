@@ -20,6 +20,7 @@ include:
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-unit.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-functional.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-typoscript-lint.yml'
+  - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-typo3-settings.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-yaml-lint.yml'
   - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/deploy.yml'
     inputs:
@@ -56,6 +57,7 @@ include:
   * `test-php-unit`
   * `test-php-functional`
   * `test-typoscript-lint`
+  * `test-typo3-settings`
   * `test-xml-lint` ⛔️ deprecated
   * `test-yaml-lint`
 
@@ -95,6 +97,36 @@ test-composer-sitepackage:
     - php sitepackage-req-checker.php packages/sitepackage_name/composer.json --ci=sitepackage-req-checker-report.xml
 ```
 
+### `test-typo3-settings`
+
+Checks that the TYPO3 configuration in the repository only contains production-safe values. `config/system/settings.php` and `additional.php` are deployed and act as fallback on every instance, including Live, whenever the environment sets nothing else. Debug settings belong into `.env` (local, dev) only.
+
+The job loads the effective `TYPO3_CONF_VARS` (core defaults, `settings.php`, `additional.php`) in `Production` context and ignores all `TYPO3_CONF_VARS__*` environment variables, so a local `.env` committed to the repository does not count. It fails on:
+
+| Rule | Requirement |
+|---|---|
+| `BE.debug`, `FE.debug` | `false` |
+| `SYS.devIPmask` | no entry that matches every address (`*`, `*.*.*.*`, `0.0.0.0/0`, `::/0`); explicit IPs are fine |
+| `SYS.displayErrors` | `0` (or `-1` with a `devIPmask` without such an entry) |
+| `SYS.productionExceptionHandler` | not the `DebugExceptionHandler` |
+| `SYS.trustedHostsPattern` | does not accept any host (e.g. `.*`) |
+| `BE.lockSSL` | `true` |
+| `MAIL.transport` | not `mbox`/`null`, no SMTP mail catcher (Mailpit, MailHog, port 1025) |
+| `EXTENSIONS.*debug*` | every extension setting with `debug` in its key is falsy |
+
+No configuration is needed. To skip single rules in a project, override the script:
+
+```yaml
+test-typo3-settings:
+  script:
+    - php typo3-settings-checker.php --skip=SYS.devIPmask,BE.lockSSL --ci=typo3-settings-checker-report.xml
+```
+
+The script lives in [`scripts/typo3-settings-checker.php`](scripts/typo3-settings-checker.php); the job downloads it from the same release tag (`TYPO3_SETTINGS_CHECKER_URL`). To run it locally, copy it into the project root and run:
+
+```bash
+ddev exec php typo3-settings-checker.php
+```
 
 ### `build-node`
 
