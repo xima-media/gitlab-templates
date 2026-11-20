@@ -30,7 +30,7 @@ class SettingsChecker
      */
     private const MATCH_ALL_DEV_IP_MASK_ENTRIES = ['*', '*.*.*.*', '0.0.0.0/0', '::/0'];
 
-    private const SECTIONS = ['BE', 'FE', 'SYS', 'MAIL', 'EXTENSIONS'];
+    private const SECTIONS = ['BE', 'FE', 'SYS', 'MAIL', 'EXTENSIONS', 'HTTP', 'LOG', 'EXTCONF'];
 
     private const HIDDEN_SUFFIX = '.settings-checker-hidden';
 
