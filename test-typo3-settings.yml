@@ -22,7 +22,7 @@ test-typo3-settings:
   before_script:
     - curl --noproxy '*' --fail --silent --show-error "$[[ inputs.checker_url ]]" > typo3-settings-checker.php
   script:
-    - php typo3-settings-checker.php --skip="$[[ inputs.skip_rules ]]" --ci=typo3-settings-checker-report.xml
+    - php typo3-settings-checker.php --skip="$[[ inputs.skip_rules ]]"
   rules:
     - if: $RESET_JOB == 'true'
       when: never
@@ -34,7 +34,3 @@ test-typo3-settings:
         - "config/system/*.php"
         - "public/typo3conf/LocalConfiguration.php"
         - "public/typo3conf/AdditionalConfiguration.php"
-  artifacts:
-    when: always
-    reports:
-      junit: typo3-settings-checker-report.xml

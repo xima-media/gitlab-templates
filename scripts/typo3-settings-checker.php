@@ -14,8 +14,7 @@
  *
  * Usage (from the project root, after composer install):
  *   ./typo3-settings-checker.php
- *   ./typo3-settings-checker.php --ci=reports/junit.xml
- *   ./typo3-settings-checker.php --skip=SYS.devIPmask,BE.lockSSL --ci=reports/junit.xml
+ *   ./typo3-settings-checker.php --skip=SYS.devIPmask,BE.lockSSL
  */
 
 class SettingsChecker
@@ -38,13 +37,8 @@ class SettingsChecker
 
     private string $rootDir;
 
-    private ?string $ciReportPath = null;
-
     /** @var string[] */
     private array $skippedRules = [];
-
-    /** @var string[] */
-    private array $errors = [];
 
     /**
      * Dotenv files moved aside: [hidden path => original path]
@@ -68,19 +62,12 @@ class SettingsChecker
     public function validateEnvironment(array $argv): bool
     {
         foreach (array_slice($argv, 1) as $argument) {
-            if (str_starts_with($argument, '--ci')) {
-                $this->ciReportPath = substr($argument, 5) ?: 'junit.xml';
-                $reportDir = dirname($this->ciReportPath);
-                if (!is_dir($reportDir) && !mkdir($reportDir, 0777, true) && !is_dir($reportDir)) {
-                    $this->addError("Could not create directory for CI report: {$reportDir}");
-                    return false;
-                }
-            } elseif (str_starts_with($argument, '--skip=')) {
+            if (str_starts_with($argument, '--skip=')) {
                 $this->skippedRules = array_filter(array_map('trim', explode(',', substr($argument, 7))));
             } else {
                 $this->addError("Unknown argument '{$argument}'.");
                 $this->printMessage(
-                    "Usage: './typo3-settings-checker.php [--skip=SYS.devIPmask,BE.lockSSL] [--ci=reports/junit.xml]'",
+                    "Usage: './typo3-settings-checker.php [--skip=SYS.devIPmask,BE.lockSSL]'",
                     self::INFO_COLOR
                 );
                 return false;
@@ -92,7 +79,7 @@ class SettingsChecker
             return false;
         }
 
-        exec('php vendor/bin/typo3 list --raw 2>&1', $commands);
+        $commands = $this->run('php vendor/bin/typo3 list --raw');
         if (!preg_grep('/^configuration:showactive\s/', $commands)) {
             $this->addError('Command configuration:showactive not available, the check requires helhum/typo3-console.');
             return false;
@@ -113,9 +100,10 @@ class SettingsChecker
             $configuration = $this->loadConfiguration();
         } catch (Throwable $e) {
             $this->addError('Could not load the TYPO3 configuration: ' . $e->getMessage());
-            $this->generateJUnitReport();
             return false;
         }
+
+        $this->printMessage('');
 
         foreach ($this->getRules() as $name => $rule) {
             $skipped = in_array($name, $this->skippedRules, true);
@@ -139,7 +127,14 @@ class SettingsChecker
             }
         }
 
-        $this->generateJUnitReport();
+        $count = fn(callable $filter): int => count(array_filter($this->results, $filter));
+        $this->printMessage(sprintf(
+            "\n%d rules: %d ok, %d failed, %d skipped",
+            count($this->results),
+            $count(static fn(array $r): bool => !$r['skipped'] && $r['failures'] === []),
+            $count(static fn(array $r): bool => $r['failures'] !== []),
+            $count(static fn(array $r): bool => $r['skipped'])
+        ));
 
         if ($failed) {
             $this->printMessage(
@@ -161,17 +156,20 @@ class SettingsChecker
     private function loadConfiguration(): array
     {
         putenv('TYPO3_CONTEXT=Production');
+        $this->printMessage('$ export TYPO3_CONTEXT=Production');
 
         try {
             $this->hideDotEnvFiles();
             $configuration = [];
             foreach (self::SECTIONS as $section) {
-                exec('php vendor/bin/typo3 configuration:showactive ' . escapeshellarg($section) . ' --json 2>&1', $output, $exitCode);
-                $json = implode("\n", $output);
-                $output = [];
+                $json = implode("\n", $this->run(
+                    'php vendor/bin/typo3 configuration:showactive ' . escapeshellarg($section) . ' --json',
+                    $exitCode
+                ));
                 if ($exitCode !== 0) {
                     // Unset sections ("No configuration found") are fine, everything else is an error
                     if (str_contains($json, 'No configuration found')) {
+                        $this->printMessage("  {$section} is not set, using an empty section");
                         continue;
                     }
                     throw new RuntimeException("configuration:showactive {$section} failed: {$json}");
@@ -380,9 +378,24 @@ class SettingsChecker
         }
     }
 
+    /**
+     * Run a shell command, print it like a CI log line and return its output (stdout and stderr).
+     *
+     * @return string[]
+     */
+    private function run(string $command, ?int &$exitCode = null): array
+    {
+        $this->printMessage('$ ' . $command);
+        $output = [];
+        exec($command . ' 2>&1', $output, $exitCode);
+        if ($exitCode !== 0) {
+            $this->printMessage("  exit code {$exitCode}", self::ERROR_COLOR);
+        }
+        return $output;
+    }
+
     private function addError(string $message): void
     {
-        $this->errors[] = $message;
         $this->printMessage('Error: ' . $message, self::ERROR_COLOR);
     }
 
@@ -391,57 +404,6 @@ class SettingsChecker
         echo $color . $message . self::RESET_COLOR . PHP_EOL;
     }
 
-    private function generateJUnitReport(): void
-    {
-        if (!$this->ciReportPath) {
-            return;
-        }
-
-        $failures = count(array_filter($this->results, static fn(array $r): bool => $r['failures'] !== []));
-        $skipped = count(array_filter($this->results, static fn(array $r): bool => $r['skipped']));
-
-        $xml = new SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><testsuites/>');
-        $testsuite = $xml->addChild('testsuite');
-        $testsuite->addAttribute('name', 'TYPO3 Settings');
-        $testsuite->addAttribute('tests', (string)(count($this->results) + count($this->errors)));
-        $testsuite->addAttribute('failures', (string)$failures);
-        $testsuite->addAttribute('errors', (string)count($this->errors));
-        $testsuite->addAttribute('skipped', (string)$skipped);
-        $testsuite->addAttribute('timestamp', date('c'));
-
-        foreach ($this->results as $name => $result) {
-            $testcase = $testsuite->addChild('testcase');
-            $testcase->addAttribute('name', $name);
-            $testcase->addAttribute('classname', 'SettingsChecker');
-            if ($result['skipped']) {
-                $testcase->addChild('skipped');
-            } elseif ($result['failures'] !== []) {
-                $failure = $testcase->addChild('failure');
-                $failure[0] = implode("\n", $result['failures']);
-                $failure->addAttribute('type', 'UnsafeSetting');
-                $failure->addAttribute('message', "{$name}: " . $result['failures'][0]);
-            }
-        }
-
-        foreach ($this->errors as $message) {
-            $testcase = $testsuite->addChild('testcase');
-            $testcase->addAttribute('name', 'Load configuration');
-            $testcase->addAttribute('classname', 'SettingsChecker');
-            $error = $testcase->addChild('error');
-            $error->addAttribute('message', $message);
-        }
-
-        $dom = new DOMDocument('1.0');
-        $dom->preserveWhiteSpace = false;
-        $dom->formatOutput = true;
-        $dom->loadXML($xml->asXML() ?: '');
-
-        if (!$dom->save($this->ciReportPath)) {
-            $this->addError("Failed to write CI report to {$this->ciReportPath}");
-        } else {
-            $this->printMessage("JUnit report generated: {$this->ciReportPath}", self::SUCCESS_COLOR);
-        }
-    }
 }
 
 $checker = new SettingsChecker();
