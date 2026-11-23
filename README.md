@@ -89,6 +89,43 @@ include:
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/build-php.yml'
 ```
 
+### `build-node`
+
+Configured via inputs only. Every package directory needs its own `package.json`,
+`package-lock.json` and a `build` script. CI runs `npm ci` + `npm run build` in each one.
+All inputs are documented in [build-node.yml](build-node.yml).
+
+`test-es-lint`, `test-html-lint` and `test-typescript-lint` run in the project root and reuse
+`node_modules/` from the build-node artifacts. Projects using them must add `node_modules/`
+(of the root package) to `artifact_paths`.
+
+```yaml
+include:
+  - remote: 'https://github.xima.workers.dev/gitlab-templates/2.0.0/build-node.yml'
+    inputs:
+      image: "node:24-slim@sha256:..."
+      # only for multiple packages (default: ".")
+      package_dirs: "packages/xima_sitepackage packages/xima_api_client"
+      artifact_paths:
+        - packages/xima_sitepackage/Resources/Public/Css/dist
+        - packages/xima_api_client/Resources/Public/JavaScript/dist
+      # only for multiple packages (default: package-lock.json, max. 2 files)
+      cache_key_files:
+        - packages/xima_sitepackage/package-lock.json
+        - packages/xima_api_client/package-lock.json
+```
+
+#### Migration 1.x → 2.0.0
+
+`image` is now a required input. Without it, the pipeline is not created.
+
+1. Add `inputs.image` to the `build-node.yml` include (keep the digest).
+2. Move `artifacts.paths` of your `build-node` job to `inputs.artifact_paths`.
+   Keep `node_modules/` only if the project depends on artifacts in following jobs.
+3. Delete the local `build-node:` job. A local `script` or `cache` would override the template.
+4. Projects that built several packages in a custom `script`: use `package_dirs` and `cache_key_files`.
+
+
 ### `test-composer-sitepackage`
 
 Add this to your `.gitlab-ci.yml` and configure the path of the `composer.json` of your sitepackage:
@@ -97,6 +134,26 @@ Add this to your `.gitlab-ci.yml` and configure the path of the `composer.json` 
 test-composer-sitepackage:
   script:
     - php sitepackage-req-checker.php packages/sitepackage_name/composer.json --ci=sitepackage-req-checker-report.xml
+```
+
+### `test-es-lint`
+
+Add this to your `.gitlab-ci.yml` to configure the node version:
+
+```yaml
+test-es-lint:
+  image:
+    name: node:18.17.1-slim
+```
+
+### `test-html-lint`
+
+Add this to your `.gitlab-ci.yml` to configure the node version:
+
+```yaml
+test-html-lint:
+  image:
+    name: node:18.17.1-slim
 ```
 
 ### `test-typo3-settings`
@@ -161,63 +218,6 @@ ddev exec php typo3-settings-checker.php
 ```
 
 The local site may fail for the second or two the dotenv files are moved aside. In Development context TYPO3 may use a cached `ext_localconf.php`; run `ddev typo3 cache:flush` after changing one.
-
-### `build-node`
-
-Configured via inputs only. Every package directory needs its own `package.json`,
-`package-lock.json` and a `build` script. CI runs `npm ci` + `npm run build` in each one.
-All inputs are documented in [build-node.yml](build-node.yml).
-
-`test-es-lint`, `test-html-lint` and `test-typescript-lint` run in the project root and reuse
-`node_modules/` from the build-node artifacts. Projects using them must add `node_modules/`
-(of the root package) to `artifact_paths`.
-
-```yaml
-include:
-  - remote: 'https://github.xima.workers.dev/gitlab-templates/2.0.0/build-node.yml'
-    inputs:
-      image: "node:24-slim@sha256:..."
-      # only for multiple packages (default: ".")
-      package_dirs: "packages/xima_sitepackage packages/xima_api_client"
-      artifact_paths:
-        - packages/xima_sitepackage/Resources/Public/Css/dist
-        - packages/xima_api_client/Resources/Public/JavaScript/dist
-      # only for multiple packages (default: package-lock.json, max. 2 files)
-      cache_key_files:
-        - packages/xima_sitepackage/package-lock.json
-        - packages/xima_api_client/package-lock.json
-```
-
-#### Migration 1.x → 2.0.0
-
-`image` is now a required input. Without it, the pipeline is not created.
-
-1. Add `inputs.image` to the `build-node.yml` include (keep the digest).
-2. Move `artifacts.paths` of your `build-node` job to `inputs.artifact_paths`.
-   Keep `node_modules/` only if the project depends on artifacts in following jobs.
-3. Delete the local `build-node:` job. A local `script` or `cache` would override the template.
-4. Projects that built several packages in a custom `script`: use `package_dirs` and `cache_key_files`.
-
-
-### `test-es-lint`
-
-Add this to your `.gitlab-ci.yml` to configure the node version:
-
-```yaml
-test-es-lint:
-  image:
-    name: node:18.17.1-slim
-```
-
-### `test-html-lint`
-
-Add this to your `.gitlab-ci.yml` to configure the node version:
-
-```yaml
-test-html-lint:
-  image:
-    name: node:18.17.1-slim
-```
 
 ## Configure Reset jobs
 
