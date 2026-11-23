@@ -108,16 +108,18 @@ The job reads the active `TYPO3_CONF_VARS` (core defaults, `settings.php`, `addi
 | Rule | Requirement |
 |---|---|
 | **Debug output** | |
-| `BE.debug`, `FE.debug` | `false` |
+| `BE.debug` | `false` |
 | `EXTENSIONS.*debug*` | every extension setting with `debug` in its key is falsy |
+| `FE.debug` | `false` |
 | `SYS.devIPmask` | no entry that matches every address (`*`, `*.*.*.*`, `0.0.0.0/0`, `::/0`); explicit IPs are fine |
 | `SYS.displayErrors` | `0` (or `-1` with a `devIPmask` without such an entry) |
 | `SYS.productionExceptionHandler` | not the `DebugExceptionHandler` |
 | **Security** | |
 | `BE.fileDenyPattern` | still blocks `.php`, `.php5`, `.phtml`, `.phar`, `.php.jpg`, `.htaccess` (unset = core default, fine) |
 | `BE.lockSSL` | `true` |
-| `BE.passwordPolicy`, `FE.passwordPolicy` | not `''` and defined in `SYS.passwordPolicies` |
+| `BE.passwordPolicy` | not `''` and defined in `SYS.passwordPolicies` |
 | `FE.pageNotFoundOnCHashError` | `true` |
+| `FE.passwordPolicy` | not `''` and defined in `SYS.passwordPolicies` |
 | `HTTP.verify` | not `false` (TLS verification of outgoing requests) |
 | `SYS.features.security` | `security.backend.enforceReferrer` on, `security.frontend.allowInsecure*` off |
 | `SYS.reverseProxyIP` ⚠ | no entry that matches every address |
