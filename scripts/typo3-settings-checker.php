@@ -291,104 +291,6 @@ class SettingsChecker
         };
 
         return [
-            // --- Debug output: would expose internals to visitors ---
-            'BE.debug' => fn(array $c): array => $this->isTruthy($c['BE']['debug'] ?? null)
-                ? [sprintf('is %s, expected false', var_export($c['BE']['debug'], true))]
-                : [],
-            'EXTENSIONS.*debug*' => function (array $c): array {
-                $failures = [];
-                foreach ($this->flatten($c['EXTENSIONS'] ?? [], 'EXTENSIONS') as $path => $value) {
-                    if (stripos(substr($path, strrpos($path, '.') + 1), 'debug') !== false && $this->isTruthy($value)) {
-                        $failures[] = sprintf('%s is %s, expected false', $path, var_export($value, true));
-                    }
-                }
-                return $failures;
-            },
-            'FE.debug' => fn(array $c): array => $this->isTruthy($c['FE']['debug'] ?? null)
-                ? [sprintf('is %s, expected false', var_export($c['FE']['debug'], true))]
-                : [],
-            'SYS.devIPmask' => function (array $c): array {
-                $value = (string)($c['SYS']['devIPmask'] ?? '');
-                return !$this->matchesEveryAddress($value)
-                    ? []
-                    : [sprintf("is '%s', which matches every client address; use explicit IPs instead", $value)];
-            },
-            'SYS.displayErrors' => function (array $c): array {
-                $value = (int)($c['SYS']['displayErrors'] ?? -1);
-                if ($value === 0) {
-                    return [];
-                }
-                if ($value === -1 && !$this->matchesEveryAddress((string)($c['SYS']['devIPmask'] ?? ''))) {
-                    return [];
-                }
-                return [sprintf('is %d, expected 0 (or -1 together with a devIPmask that does not match every address)', $value)];
-            },
-            'SYS.productionExceptionHandler' => function (array $c): array {
-                $value = ltrim((string)($c['SYS']['productionExceptionHandler'] ?? ''), '\\');
-                return str_ends_with($value, 'DebugExceptionHandler')
-                    ? [sprintf("is '%s', the debug exception handler shows stack traces to every visitor", $value)]
-                    : [];
-            },
-
-            // --- Security: would open an attack vector ---
-            'BE.fileDenyPattern' => function (array $c): array {
-                if (!array_key_exists('fileDenyPattern', $c['BE'] ?? [])) {
-                    return []; // FileNameValidator::DEFAULT_FILE_DENY_PATTERN applies
-                }
-                $pattern = (string)$c['BE']['fileDenyPattern'];
-                // Same check as FileNameValidator::isValid()
-                $allowed = array_filter(
-                    self::DENIED_FILE_NAMES,
-                    static fn(string $file): bool => $pattern === '' || @preg_match('/(?:[[:cntrl:]]|' . $pattern . ')/iu', $file) !== 1
-                );
-                return $allowed === []
-                    ? []
-                    : [sprintf("'%s' does not block %s", $pattern, implode(', ', $allowed))];
-            },
-            'BE.lockSSL' => fn(array $c): array => $this->isTruthy($c['BE']['lockSSL'] ?? null)
-                ? []
-                : [sprintf('is %s, expected true', var_export($c['BE']['lockSSL'] ?? null, true))],
-            'BE.passwordPolicy' => $passwordPolicy('BE'),
-            'FE.pageNotFoundOnCHashError' => fn(array $c): array => $this->isTruthy($c['FE']['pageNotFoundOnCHashError'] ?? true)
-                ? []
-                : [sprintf('is %s, expected true (otherwise invalid cHash requests get rendered and cached)', var_export($c['FE']['pageNotFoundOnCHashError'], true))],
-            'FE.passwordPolicy' => $passwordPolicy('FE'),
-            'HTTP.verify' => fn(array $c): array => $this->isTruthy($c['HTTP']['verify'] ?? true)
-                ? []
-                : [sprintf('is %s, TLS certificates of outgoing requests would not be verified', var_export($c['HTTP']['verify'], true))],
-            'SYS.features.security' => function (array $c): array {
-                $features = $c['SYS']['features'] ?? [];
-                $failures = [];
-                if (!$this->isTruthy($features['security.backend.enforceReferrer'] ?? true)) {
-                    $failures[] = 'security.backend.enforceReferrer is disabled, expected true';
-                }
-                foreach (['security.frontend.allowInsecureSiteResolutionByQueryParameters', 'security.frontend.allowInsecureFrameOptionInShowImageController'] as $feature) {
-                    if ($this->isTruthy($features[$feature] ?? false)) {
-                        $failures[] = sprintf('%s is enabled, expected false', $feature);
-                    }
-                }
-                return $failures;
-            },
-            'SYS.reverseProxyIP' => $this->warning(function (array $c): array {
-                $value = (string)($c['SYS']['reverseProxyIP'] ?? '');
-                return $this->matchesEveryAddress($value)
-                    ? [sprintf("is '%s', every client could fake its IP via X-Forwarded-For; use the proxy IPs instead", $value)]
-                    : [];
-            }),
-            'SYS.systemMaintainers' => $this->warning(fn(array $c): array => empty($c['SYS']['systemMaintainers'])
-                ? ['is empty, every admin is a system maintainer (Install Tool, settings)']
-                : []),
-            'SYS.trustedHostsPattern' => function (array $c): array {
-                $value = (string)($c['SYS']['trustedHostsPattern'] ?? 'SERVER_NAME');
-                if ($value === 'SERVER_NAME') {
-                    return [];
-                }
-                // Same check as GeneralUtility::hostHeaderValueMatchesTrustedHostsPattern()
-                $matchesAnyHost = @preg_match('/^' . $value . '$/i', 'attacker.invalid') === 1;
-                return $matchesAnyHost ? [sprintf("is '%s', which accepts any host header", $value)] : [];
-            },
-
-            // --- Operation: Live would not work (correctly) ---
             '*.devHosts' => $this->warning(function (array $c): array {
                 $failures = [];
                 foreach (['DB', 'EXTENSIONS', 'HTTP'] as $section) {
@@ -408,12 +310,61 @@ class SettingsChecker
             'BE.adminOnly' => fn(array $c): array => (int)($c['BE']['adminOnly'] ?? 0) === 0
                 ? []
                 : [sprintf('is %d, expected 0 (otherwise editors are locked out of the backend)', $c['BE']['adminOnly'])],
+            'BE.debug' => fn(array $c): array => $this->isTruthy($c['BE']['debug'] ?? null)
+                ? [sprintf('is %s, expected false', var_export($c['BE']['debug'], true))]
+                : [],
+            'BE.fileDenyPattern' => function (array $c): array {
+                if (!array_key_exists('fileDenyPattern', $c['BE'] ?? [])) {
+                    return []; // FileNameValidator::DEFAULT_FILE_DENY_PATTERN applies
+                }
+                $pattern = (string)$c['BE']['fileDenyPattern'];
+                // Same check as FileNameValidator::isValid()
+                $allowed = array_filter(
+                    self::DENIED_FILE_NAMES,
+                    static fn(string $file): bool => $pattern === '' || @preg_match('/(?:[[:cntrl:]]|' . $pattern . ')/iu', $file) !== 1
+                );
+                return $allowed === []
+                    ? []
+                    : [sprintf("'%s' does not block %s", $pattern, implode(', ', $allowed))];
+            },
+            'BE.lockSSL' => fn(array $c): array => $this->isTruthy($c['BE']['lockSSL'] ?? null)
+                ? []
+                : [sprintf('is %s, expected true', var_export($c['BE']['lockSSL'] ?? null, true))],
+            'BE.passwordPolicy' => $passwordPolicy('BE'),
+            'BE.warning_email_addr' => fn(array $c): array => filter_var($c['BE']['warning_email_addr'] ?? '', FILTER_VALIDATE_EMAIL)
+                ? []
+                : [sprintf("is '%s', expected a valid e-mail address", $c['BE']['warning_email_addr'] ?? '')],
+            'EXTCONF.lang.availableLanguages' => fn(array $c): array => in_array('de', (array)($c['EXTCONF']['lang']['availableLanguages'] ?? []), true)
+                ? []
+                : ["expected 'de' in the list of language packs"],
+            'EXTENSIONS.*debug*' => function (array $c): array {
+                $failures = [];
+                foreach ($this->flatten($c['EXTENSIONS'] ?? [], 'EXTENSIONS') as $path => $value) {
+                    if (stripos(substr($path, strrpos($path, '.') + 1), 'debug') !== false && $this->isTruthy($value)) {
+                        $failures[] = sprintf('%s is %s, expected false', $path, var_export($value, true));
+                    }
+                }
+                return $failures;
+            },
+            'FE.debug' => fn(array $c): array => $this->isTruthy($c['FE']['debug'] ?? null)
+                ? [sprintf('is %s, expected false', var_export($c['FE']['debug'], true))]
+                : [],
+            'FE.disableNoCacheParameter' => fn(array $c): array => $this->isTruthy($c['FE']['disableNoCacheParameter'] ?? null)
+                ? []
+                : [sprintf('is %s, expected true', var_export($c['FE']['disableNoCacheParameter'] ?? null, true))],
+            'FE.pageNotFoundOnCHashError' => fn(array $c): array => $this->isTruthy($c['FE']['pageNotFoundOnCHashError'] ?? true)
+                ? []
+                : [sprintf('is %s, expected true (otherwise invalid cHash requests get rendered and cached)', var_export($c['FE']['pageNotFoundOnCHashError'], true))],
             'FE.pageUnavailable_force' => fn(array $c): array => $this->isTruthy($c['FE']['pageUnavailable_force'] ?? false)
                 ? [sprintf('is %s, the whole frontend would answer with 503', var_export($c['FE']['pageUnavailable_force'], true))]
                 : [],
+            'FE.passwordPolicy' => $passwordPolicy('FE'),
             'HTTP.timeout' => fn(array $c): array => (float)($c['HTTP']['timeout'] ?? 0) > 0
                 ? []
                 : [sprintf('is %s, expected a timeout > 0 (0 waits forever)', var_export($c['HTTP']['timeout'] ?? null, true))],
+            'HTTP.verify' => fn(array $c): array => $this->isTruthy($c['HTTP']['verify'] ?? true)
+                ? []
+                : [sprintf('is %s, TLS certificates of outgoing requests would not be verified', var_export($c['HTTP']['verify'], true))],
             'LOG.debug' => $this->warning(function (array $c): array {
                 $failures = [];
                 foreach ($this->findLogWriterConfigurations($c['LOG'] ?? [], 'LOG') as $path => $levels) {
@@ -442,6 +393,19 @@ class SettingsChecker
                 }
                 return $failures;
             },
+            'LOG.Scheduler' => $this->warning(function (array $c): array {
+                foreach ($c['LOG']['TYPO3']['CMS']['Scheduler']['writerConfiguration'] ?? [] as $writers) {
+                    foreach ((array)$writers as $writer => $options) {
+                        if (str_ends_with((string)$writer, 'FileWriter')
+                            && !$this->isTruthy($options['disabled'] ?? false)
+                            && !empty($options['logFile'])
+                        ) {
+                            return [];
+                        }
+                    }
+                }
+                return ['expected an enabled FileWriter with logFile in LOG.TYPO3.CMS.Scheduler.writerConfiguration'];
+            }),
             'MAIL.defaultMailFromAddress' => $this->warning(fn(array $c): array => filter_var($c['MAIL']['defaultMailFromAddress'] ?? '', FILTER_VALIDATE_EMAIL)
                 ? []
                 : [sprintf("is '%s', expected a valid e-mail address (otherwise no-reply@<hostname> is used)", $c['MAIL']['defaultMailFromAddress'] ?? '')]),
@@ -466,33 +430,62 @@ class SettingsChecker
                 }
                 return $failures;
             }),
-
-            // --- Project standards: XIMA conventions ---
-            'BE.warning_email_addr' => fn(array $c): array => filter_var($c['BE']['warning_email_addr'] ?? '', FILTER_VALIDATE_EMAIL)
-                ? []
-                : [sprintf("is '%s', expected a valid e-mail address", $c['BE']['warning_email_addr'] ?? '')],
-            'EXTCONF.lang.availableLanguages' => fn(array $c): array => in_array('de', (array)($c['EXTCONF']['lang']['availableLanguages'] ?? []), true)
-                ? []
-                : ["expected 'de' in the list of language packs"],
-            'FE.disableNoCacheParameter' => fn(array $c): array => $this->isTruthy($c['FE']['disableNoCacheParameter'] ?? null)
-                ? []
-                : [sprintf('is %s, expected true', var_export($c['FE']['disableNoCacheParameter'] ?? null, true))],
-            'LOG.Scheduler' => $this->warning(function (array $c): array {
-                foreach ($c['LOG']['TYPO3']['CMS']['Scheduler']['writerConfiguration'] ?? [] as $writers) {
-                    foreach ((array)$writers as $writer => $options) {
-                        if (str_ends_with((string)$writer, 'FileWriter')
-                            && !$this->isTruthy($options['disabled'] ?? false)
-                            && !empty($options['logFile'])
-                        ) {
-                            return [];
-                        }
-                    }
-                }
-                return ['expected an enabled FileWriter with logFile in LOG.TYPO3.CMS.Scheduler.writerConfiguration'];
-            }),
             'SYS.defaultScheme' => fn(array $c): array => ($c['SYS']['defaultScheme'] ?? '') === 'https'
                 ? []
                 : [sprintf("is '%s', expected 'https'", $c['SYS']['defaultScheme'] ?? '')],
+            'SYS.devIPmask' => function (array $c): array {
+                $value = (string)($c['SYS']['devIPmask'] ?? '');
+                return !$this->matchesEveryAddress($value)
+                    ? []
+                    : [sprintf("is '%s', which matches every client address; use explicit IPs instead", $value)];
+            },
+            'SYS.displayErrors' => function (array $c): array {
+                $value = (int)($c['SYS']['displayErrors'] ?? -1);
+                if ($value === 0) {
+                    return [];
+                }
+                if ($value === -1 && !$this->matchesEveryAddress((string)($c['SYS']['devIPmask'] ?? ''))) {
+                    return [];
+                }
+                return [sprintf('is %d, expected 0 (or -1 together with a devIPmask that does not match every address)', $value)];
+            },
+            'SYS.features.security' => function (array $c): array {
+                $features = $c['SYS']['features'] ?? [];
+                $failures = [];
+                if (!$this->isTruthy($features['security.backend.enforceReferrer'] ?? true)) {
+                    $failures[] = 'security.backend.enforceReferrer is disabled, expected true';
+                }
+                foreach (['security.frontend.allowInsecureSiteResolutionByQueryParameters', 'security.frontend.allowInsecureFrameOptionInShowImageController'] as $feature) {
+                    if ($this->isTruthy($features[$feature] ?? false)) {
+                        $failures[] = sprintf('%s is enabled, expected false', $feature);
+                    }
+                }
+                return $failures;
+            },
+            'SYS.productionExceptionHandler' => function (array $c): array {
+                $value = ltrim((string)($c['SYS']['productionExceptionHandler'] ?? ''), '\\');
+                return str_ends_with($value, 'DebugExceptionHandler')
+                    ? [sprintf("is '%s', the debug exception handler shows stack traces to every visitor", $value)]
+                    : [];
+            },
+            'SYS.reverseProxyIP' => $this->warning(function (array $c): array {
+                $value = (string)($c['SYS']['reverseProxyIP'] ?? '');
+                return $this->matchesEveryAddress($value)
+                    ? [sprintf("is '%s', every client could fake its IP via X-Forwarded-For; use the proxy IPs instead", $value)]
+                    : [];
+            }),
+            'SYS.systemMaintainers' => $this->warning(fn(array $c): array => empty($c['SYS']['systemMaintainers'])
+                ? ['is empty, every admin is a system maintainer (Install Tool, settings)']
+                : []),
+            'SYS.trustedHostsPattern' => function (array $c): array {
+                $value = (string)($c['SYS']['trustedHostsPattern'] ?? 'SERVER_NAME');
+                if ($value === 'SERVER_NAME') {
+                    return [];
+                }
+                // Same check as GeneralUtility::hostHeaderValueMatchesTrustedHostsPattern()
+                $matchesAnyHost = @preg_match('/^' . $value . '$/i', 'attacker.invalid') === 1;
+                return $matchesAnyHost ? [sprintf("is '%s', which accepts any host header", $value)] : [];
+            },
         ];
     }
 
