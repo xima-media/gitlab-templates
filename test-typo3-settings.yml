@@ -1,7 +1,7 @@
 # Usage: checks that the TYPO3 configuration in the repository only contains production-safe values.
 #
 # include:
-#   - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/<release>/test-typo3-settings.yml'
+#   - remote: 'https://github.xima.workers.dev/gitlab-templates/<release>/test-typo3-settings.yml'
 #     inputs:
 #       skip_rules: "SYS.devIPmask,BE.lockSSL"
 
@@ -13,7 +13,7 @@ spec:
       description: "Comma-separated rules to skip, e.g. 'SYS.devIPmask,BE.lockSSL'."
     checker_url:
       type: string
-      default: "https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/scripts/typo3-settings-checker.php"
+      default: "https://github.xima.workers.dev/gitlab-templates/1.8.0/scripts/typo3-settings-checker.php"
       description: "URL of typo3-settings-checker.php, e.g. to test a branch of this repository."
 ---
 test-typo3-settings:

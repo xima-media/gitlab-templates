@@ -151,7 +151,7 @@ No configuration is needed. The include takes these inputs:
 
 ```yaml
 include:
-  - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.8.0/test-typo3-settings.yml'
+  - remote: 'https://github.xima.workers.dev/gitlab-templates/<release>/test-typo3-settings.yml'
     inputs:
       skip_rules: "SYS.devIPmask,BE.lockSSL"
 ```
