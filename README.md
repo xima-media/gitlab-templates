@@ -171,6 +171,7 @@ The job reads the active `TYPO3_CONF_VARS` (core defaults, `settings.php`, `addi
 | `BE.lockSSL` | `true` |
 | `BE.passwordPolicy` | not `''` and defined in `SYS.passwordPolicies` |
 | `BE.warning_email_addr` | a valid e-mail address |
+| `DB.Connections.Default.charset` | `utf8mb4` |
 | `EXTCONF.lang.availableLanguages` | contains `de` |
 | `EXTENSIONS.*debug*` | every extension setting with `debug` in its key is falsy |
 | `FE.debug` | `false` |

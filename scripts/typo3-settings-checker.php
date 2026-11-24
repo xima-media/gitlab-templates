@@ -334,6 +334,9 @@ class SettingsChecker
             'BE.warning_email_addr' => fn(array $c): array => filter_var($c['BE']['warning_email_addr'] ?? '', FILTER_VALIDATE_EMAIL)
                 ? []
                 : [sprintf("is '%s', expected a valid e-mail address", $c['BE']['warning_email_addr'] ?? '')],
+            'DB.Connections.Default.charset' => fn(array $c): array => ($c['DB']['Connections']['Default']['charset'] ?? '') === 'utf8mb4'
+                ? []
+                : [sprintf("is '%s', expected 'utf8mb4'", $c['DB']['Connections']['Default']['charset'] ?? '')],
             'EXTCONF.lang.availableLanguages' => fn(array $c): array => in_array('de', (array)($c['EXTCONF']['lang']['availableLanguages'] ?? []), true)
                 ? []
                 : ["expected 'de' in the list of language packs"],
