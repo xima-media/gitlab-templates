@@ -13,7 +13,8 @@ spec:
       description: "Comma-separated rules to skip, e.g. 'SYS.devIPmask,BE.lockSSL'."
     checker_url:
       type: string
-      default: "https://github.xima.workers.dev/gitlab-templates/1.8.0/scripts/typo3-settings-checker.php"
+      # Must point to the tag of the release that ships this file: bump it in every release.
+      default: "https://github.xima.workers.dev/gitlab-templates/2.0.1/scripts/typo3-settings-checker.php"
       description: "URL of typo3-settings-checker.php, e.g. to test a branch of this repository."
 ---
 test-typo3-settings:
