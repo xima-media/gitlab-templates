@@ -21,6 +21,9 @@ include:
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-php-functional.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-typoscript-lint.yml'
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-yaml-lint.yml'
+  - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/test-typo3-settings.yml'
+    inputs:
+      skip_rules: ""
   - remote: 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.6.0/deploy.yml'
     inputs:
       ci_server_url: https://git.example.com
@@ -56,6 +59,7 @@ include:
   * `test-php-unit`
   * `test-php-functional`
   * `test-typoscript-lint`
+  * `test-typo3-settings`
   * `test-xml-lint` ⛔️ deprecated
   * `test-yaml-lint`
 
@@ -84,17 +88,6 @@ variables:
 include:
   - 'https://raw.githubusercontent.com/xima-media/gitlab-templates/1.0.0/build-php.yml'
 ```
-
-### `test-composer-sitepackage`
-
-Add this to your `.gitlab-ci.yml` and configure the path of the `composer.json` of your sitepackage:
-
-```yaml
-test-composer-sitepackage:
-  script:
-    - php sitepackage-req-checker.php packages/sitepackage_name/composer.json --ci=sitepackage-req-checker-report.xml
-```
-
 
 ### `build-node`
 
@@ -133,6 +126,16 @@ include:
 4. Projects that built several packages in a custom `script`: use `package_dirs` and `cache_key_files`.
 
 
+### `test-composer-sitepackage`
+
+Add this to your `.gitlab-ci.yml` and configure the path of the `composer.json` of your sitepackage:
+
+```yaml
+test-composer-sitepackage:
+  script:
+    - php sitepackage-req-checker.php packages/sitepackage_name/composer.json --ci=sitepackage-req-checker-report.xml
+```
+
 ### `test-es-lint`
 
 Add this to your `.gitlab-ci.yml` to configure the node version:
@@ -152,6 +155,70 @@ test-html-lint:
   image:
     name: node:18.17.1-slim
 ```
+
+### `test-typo3-settings`
+
+Checks that the TYPO3 configuration in the repository only contains production-safe values. `config/system/settings.php` and `additional.php` are deployed and act as fallback on every instance, including Live, whenever the environment sets nothing else. Debug settings belong into `.env` (local, dev) only.
+
+The job reads the active `TYPO3_CONF_VARS` (core defaults, `settings.php`, `additional.php`, `ext_localconf.php`) via `typo3 configuration:showactive` in `Production` context, so the project needs `helhum/typo3-console`. While reading, it temporarily moves the dotenv files (`.env`, `.env.dist`, `.env.local`, `.env.dev`, `.env.dev.local`) aside and restores them afterwards, because a committed local `.env` is not deployed. It checks these rules (⚠ = warning only):
+
+| Rule | Requirement |
+|---|---|
+| `*.devHosts` ⚠ | no DDEV/Docker hosts (`*.ddev.site`, `host.docker.internal`, `ddev-*-db`, DB host `db`) in `DB`, `EXTENSIONS`, `HTTP` |
+| `BE.adminOnly` | `0` (`1` also blocks the TYPO3 CLI, the job then fails with that error) |
+| `BE.debug` | `false` |
+| `BE.fileDenyPattern` | still blocks `.php`, `.php5`, `.phtml`, `.phar`, `.php.jpg`, `.htaccess` (unset = core default, fine) |
+| `BE.lockSSL` | `true` |
+| `BE.passwordPolicy` | not `''` and defined in `SYS.passwordPolicies` |
+| `BE.warning_email_addr` | a valid e-mail address |
+| `DB.Connections.Default.charset` | `utf8mb4` |
+| `EXTCONF.lang.availableLanguages` | contains `de` |
+| `EXTENSIONS.*debug*` | every extension setting with `debug` in its key is falsy |
+| `FE.debug` | `false` |
+| `FE.disableNoCacheParameter` | `true` |
+| `FE.pageNotFoundOnCHashError` | `true` |
+| `FE.pageUnavailable_force` | `false` |
+| `FE.passwordPolicy` | not `''` and defined in `SYS.passwordPolicies` |
+| `HTTP.timeout` | `> 0` (core default `0` waits forever) |
+| `HTTP.verify` | not `false` (TLS verification of outgoing requests) |
+| `LOG.debug` ⚠ | no enabled log writer at level `debug` |
+| `LOG.deprecations` | deprecation log writers disabled |
+| `LOG.Scheduler` ⚠ | an enabled `FileWriter` with `logFile` in `LOG.TYPO3.CMS.Scheduler.writerConfiguration` |
+| `MAIL.defaultMailFromAddress` ⚠ | a valid e-mail address |
+| `MAIL.transport` | not `mbox`/`null`, no SMTP mail catcher (Mailpit, MailHog, port 1025) |
+| `SYS.caching` ⚠ | no cache with `NullBackend` |
+| `SYS.defaultScheme` | `https` |
+| `SYS.devIPmask` | no entry that matches every address (`*`, `*.*.*.*`, `0.0.0.0/0`, `::/0`); explicit IPs are fine |
+| `SYS.displayErrors` | `0` (or `-1` with a `devIPmask` without such an entry) |
+| `SYS.features.security` | `security.backend.enforceReferrer` on, `security.frontend.allowInsecure*` off |
+| `SYS.productionExceptionHandler` | not the `DebugExceptionHandler` |
+| `SYS.reverseProxyIP` ⚠ | no entry that matches every address |
+| `SYS.systemMaintainers` ⚠ | not empty |
+| `SYS.trustedHostsPattern` | does not accept any host (e.g. `.*`) |
+
+A failing rule fails the job. A failing warning rule (⚠) or a skipped rule is listed as `WARN` (orange) or `SKIP` (yellow) and the job passes with a warning (exit code 2, `allow_failure: exit_codes`).
+
+No configuration is needed. The include takes these inputs:
+
+| Input | Default | Description |
+|---|---|---|
+| `skip_rules` | `""` | Comma-separated rules to skip, e.g. `SYS.devIPmask,BE.lockSSL`; skipped rules turn the job into a warning |
+| `checker_url` | script of the release tag | URL of `typo3-settings-checker.php`, e.g. to test a branch of this repository |
+
+```yaml
+include:
+  - remote: 'https://github.xima.workers.dev/gitlab-templates/<release>/test-typo3-settings.yml'
+    inputs:
+      skip_rules: "SYS.devIPmask,BE.lockSSL"
+```
+
+The script lives in [`scripts/typo3-settings-checker.php`](scripts/typo3-settings-checker.php); the job downloads it from the release tag (`checker_url`). To run it locally, copy it into the project root and run:
+
+```bash
+ddev exec php typo3-settings-checker.php
+```
+
+The local site may fail for the second or two the dotenv files are moved aside. In Development context TYPO3 may use a cached `ext_localconf.php`; run `ddev typo3 cache:flush` after changing one.
 
 ## Configure Reset jobs
 
