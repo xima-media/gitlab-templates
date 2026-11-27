@@ -1,9 +1,7 @@
 build-php:
   stage: build
   cache:
-    - key: 
-        files: 
-          - composer.lock
+    - key: composer
       paths:
         - .composer-cache/
   script:

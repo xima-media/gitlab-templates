@@ -1,10 +1,7 @@
 build-php-no-dev:
   stage: build
   cache:
-    - key: 
-        files: 
-          - composer.lock
-          - public/.htaccess
+    - key: composer
       paths:
         - .composer-cache/
   script:
