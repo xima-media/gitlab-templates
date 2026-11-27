@@ -160,11 +160,11 @@ test-html-lint:
 
 Checks that the TYPO3 configuration in the repository only contains production-safe values. `config/system/settings.php` and `additional.php` are deployed and act as fallback on every instance, including Live, whenever the environment sets nothing else. Debug settings belong into `.env` (local, dev) only.
 
-The job reads the active `TYPO3_CONF_VARS` (core defaults, `settings.php`, `additional.php`, `ext_localconf.php`) via `typo3 configuration:showactive` in `Production` context, so the project needs `helhum/typo3-console`. While reading, it temporarily moves the dotenv files (`.env`, `.env.dist`, `.env.local`, `.env.dev`, `.env.dev.local`) aside and restores them afterwards, because a committed local `.env` is not deployed. It checks these rules (⚠ = warning only):
+The job reads the active `TYPO3_CONF_VARS` (core defaults, `settings.php`, `additional.php`, `ext_localconf.php`) via `typo3 configuration:showactive` in `Production` context, so the project needs `helhum/typo3-console`. While reading, it temporarily moves the dotenv files (`.env`, `.env.dist`, `.env.local`, `.env.dev`, `.env.dev.local`) aside and restores them afterwards, because a committed local `.env` is not deployed. It checks these rules:
 
 | Rule | Requirement |
 |---|---|
-| `*.devHosts` ⚠ | no DDEV/Docker hosts (`*.ddev.site`, `host.docker.internal`, `ddev-*-db`, DB host `db`) in `DB`, `EXTENSIONS`, `HTTP` |
+| `*.devHosts` | no DDEV/Docker hosts (`*.ddev.site`, `host.docker.internal`, `ddev-*-db`, DB host `db`) in `DB`, `EXTENSIONS`, `HTTP` |
 | `BE.adminOnly` | `0` (`1` also blocks the TYPO3 CLI, the job then fails with that error) |
 | `BE.debug` | `false` |
 | `BE.fileDenyPattern` | still blocks `.php`, `.php5`, `.phtml`, `.phar`, `.php.jpg`, `.htaccess` (unset = core default, fine) |
@@ -181,28 +181,28 @@ The job reads the active `TYPO3_CONF_VARS` (core defaults, `settings.php`, `addi
 | `FE.passwordPolicy` | not `''` and defined in `SYS.passwordPolicies` |
 | `HTTP.timeout` | `> 0` (core default `0` waits forever) |
 | `HTTP.verify` | not `false` (TLS verification of outgoing requests) |
-| `LOG.debug` ⚠ | no enabled log writer at level `debug` |
+| `LOG.debug` | no enabled log writer at level `debug` |
 | `LOG.deprecations` | deprecation log writers disabled |
-| `LOG.Scheduler` ⚠ | an enabled `FileWriter` with `logFile` in `LOG.TYPO3.CMS.Scheduler.writerConfiguration` |
-| `MAIL.defaultMailFromAddress` ⚠ | a valid e-mail address |
+| `LOG.Scheduler` | an enabled `FileWriter` with `logFile` in `LOG.TYPO3.CMS.Scheduler.writerConfiguration` |
+| `MAIL.defaultMailFromAddress` | a valid e-mail address |
 | `MAIL.transport` | not `mbox`/`null`, no SMTP mail catcher (Mailpit, MailHog, port 1025) |
-| `SYS.caching` ⚠ | no cache with `NullBackend` |
+| `SYS.caching` | no cache with `NullBackend` |
 | `SYS.defaultScheme` | `https` |
 | `SYS.devIPmask` | no entry that matches every address (`*`, `*.*.*.*`, `0.0.0.0/0`, `::/0`); explicit IPs are fine |
 | `SYS.displayErrors` | `0` (or `-1` with a `devIPmask` without such an entry) |
 | `SYS.features.security` | `security.backend.enforceReferrer` on, `security.frontend.allowInsecure*` off |
 | `SYS.productionExceptionHandler` | not the `DebugExceptionHandler` |
-| `SYS.reverseProxyIP` ⚠ | no entry that matches every address |
-| `SYS.systemMaintainers` ⚠ | not empty |
+| `SYS.reverseProxyIP` | no entry that matches every address |
+| `SYS.systemMaintainers` | not empty |
 | `SYS.trustedHostsPattern` | does not accept any host (e.g. `.*`) |
 
-A failing rule fails the job. A failing warning rule (⚠) or a skipped rule is listed as `WARN` (orange) or `SKIP` (yellow) and the job passes with a warning (exit code 2, `allow_failure: exit_codes`).
+A failing rule fails the job (exit code 1). A skipped rule is listed as `SKIP` (yellow) and not checked.
 
 No configuration is needed. The include takes these inputs:
 
 | Input | Default | Description |
 |---|---|---|
-| `skip_rules` | `""` | Comma-separated rules to skip, e.g. `SYS.devIPmask,BE.lockSSL`; skipped rules turn the job into a warning |
+| `skip_rules` | `""` | Comma-separated rules to skip, e.g. `SYS.devIPmask,BE.lockSSL` |
 | `checker_url` | script of the release tag | URL of `typo3-settings-checker.php`, e.g. to test a branch of this repository |
 
 ```yaml
@@ -210,6 +210,13 @@ include:
   - remote: 'https://github.xima.workers.dev/gitlab-templates/<release>/test-typo3-settings.yml'
     inputs:
       skip_rules: "SYS.devIPmask,BE.lockSSL"
+```
+
+To introduce the job in an existing project without blocking the pipeline, override it in the project's `.gitlab-ci.yml`. Failures then only show as a warning. Remove the override once the configuration is fixed, and use `skip_rules` for rules that are intentionally different in the project:
+
+```yaml
+test-typo3-settings:
+  allow_failure: true
 ```
 
 The script lives in [`scripts/typo3-settings-checker.php`](scripts/typo3-settings-checker.php); the job downloads it from the release tag (`checker_url`). To run it locally, copy it into the project root and run:
