@@ -12,8 +12,7 @@
  * "Production" context. The dotenv files (.env, .env.dist, .env.local, .env.dev, .env.dev.local) are moved aside while
  * reading and restored afterwards, because they hold local values and are not deployed.
  *
- * Exit codes: 0 all rules ok, 1 a rule failed or the configuration could not be read, 2 only warning rules failed
- * (rules wrapped in warning()) and/or rules were skipped.
+ * Exit codes: 0 all checked rules ok (skipped rules are listed), 1 a rule failed or the configuration could not be read.
  *
  * Usage (from the project root, after composer install):
  *   ./typo3-settings-checker.php
@@ -25,13 +24,11 @@ class SettingsChecker
     private const ERROR_COLOR = "\e[0;31m";
     private const SUCCESS_COLOR = "\e[0;32m";
     private const INFO_COLOR = "\e[0;36m";
-    private const WARNING_COLOR = "\e[38;5;208m";
     private const SKIP_COLOR = "\e[0;33m";
     private const RESET_COLOR = "\e[0m";
 
     public const EXIT_OK = 0;
     public const EXIT_FAILED = 1;
-    public const EXIT_WARNING = 2;
 
     /**
      * IP list entries (devIPmask, reverseProxyIP) that match every client address. Explicit IPs and partial wildcards are fine.
@@ -67,9 +64,9 @@ class SettingsChecker
     private array $hiddenFiles = [];
 
     /**
-     * Results per rule: [ruleName => ['skipped' => bool, 'warning' => bool, 'failures' => string[]]]
+     * Results per rule: [ruleName => ['skipped' => bool, 'failures' => string[]]]
      *
-     * @var array<string, array{skipped: bool, warning: bool, failures: string[]}>
+     * @var array<string, array{skipped: bool, failures: string[]}>
      */
     private array $results = [];
 
@@ -118,7 +115,7 @@ class SettingsChecker
     }
 
     /**
-     * @return int self::EXIT_OK, self::EXIT_FAILED or self::EXIT_WARNING (only warnings and/or skipped rules)
+     * @return int self::EXIT_OK or self::EXIT_FAILED
      */
     public function check(): int
     {
@@ -131,12 +128,10 @@ class SettingsChecker
 
         $this->printMessage('');
 
-        foreach ($this->getRules() as $name => $rule) {
+        foreach ($this->getRules() as $name => $check) {
             $skipped = in_array($name, $this->skippedRules, true);
-            $check = is_array($rule) ? $rule['check'] : $rule;
             $this->results[$name] = [
                 'skipped' => $skipped,
-                'warning' => is_array($rule) && $rule['warning'],
                 'failures' => $skipped ? [] : $check($configuration),
             ];
         }
@@ -148,23 +143,19 @@ class SettingsChecker
                 $this->printMessage("OK   {$name}", self::SUCCESS_COLOR);
             } else {
                 foreach ($result['failures'] as $failure) {
-                    $result['warning']
-                        ? $this->printMessage("WARN {$name}: {$failure}", self::WARNING_COLOR)
-                        : $this->printMessage("FAIL {$name}: {$failure}", self::ERROR_COLOR);
+                    $this->printMessage("FAIL {$name}: {$failure}", self::ERROR_COLOR);
                 }
             }
         }
 
         $count = fn(callable $filter): int => count(array_filter($this->results, $filter));
-        $failed = $count(static fn(array $r): bool => !$r['warning'] && $r['failures'] !== []);
-        $warnings = $count(static fn(array $r): bool => $r['warning'] && $r['failures'] !== []);
+        $failed = $count(static fn(array $r): bool => $r['failures'] !== []);
         $skipped = $count(static fn(array $r): bool => $r['skipped']);
         $this->printMessage(sprintf(
-            "\n%d rules: %d ok, %d failed, %d warnings, %d skipped",
+            "\n%d rules: %d ok, %d failed, %d skipped",
             count($this->results),
-            count($this->results) - $failed - $warnings - $skipped,
+            count($this->results) - $failed - $skipped,
             $failed,
-            $warnings,
             $skipped
         ));
 
@@ -175,11 +166,6 @@ class SettingsChecker
                 self::ERROR_COLOR
             );
             return self::EXIT_FAILED;
-        }
-
-        if ($warnings > 0 || $skipped > 0) {
-            $this->printMessage("\nWarning: Some rules were skipped or only warn, check the list above.", self::WARNING_COLOR);
-            return self::EXIT_WARNING;
         }
 
         $this->printMessage("\nSuccess: The TYPO3 configuration only contains production-safe values.", self::SUCCESS_COLOR);
@@ -291,7 +277,7 @@ class SettingsChecker
         };
 
         return [
-            '*.devHosts' => $this->warning(function (array $c): array {
+            '*.devHosts' => function (array $c): array {
                 $failures = [];
                 foreach (['DB', 'EXTENSIONS', 'HTTP'] as $section) {
                     foreach ($this->flatten($c[$section] ?? [], $section) as $path => $value) {
@@ -306,7 +292,7 @@ class SettingsChecker
                     }
                 }
                 return $failures;
-            }),
+            },
             'BE.adminOnly' => fn(array $c): array => (int)($c['BE']['adminOnly'] ?? 0) === 0
                 ? []
                 : [sprintf('is %d, expected 0 (otherwise editors are locked out of the backend)', $c['BE']['adminOnly'])],
@@ -368,7 +354,7 @@ class SettingsChecker
             'HTTP.verify' => fn(array $c): array => $this->isTruthy($c['HTTP']['verify'] ?? true)
                 ? []
                 : [sprintf('is %s, TLS certificates of outgoing requests would not be verified', var_export($c['HTTP']['verify'], true))],
-            'LOG.debug' => $this->warning(function (array $c): array {
+            'LOG.debug' => function (array $c): array {
                 $failures = [];
                 foreach ($this->findLogWriterConfigurations($c['LOG'] ?? [], 'LOG') as $path => $levels) {
                     foreach ($levels as $level => $writers) {
@@ -384,7 +370,7 @@ class SettingsChecker
                     }
                 }
                 return $failures;
-            }),
+            },
             'LOG.deprecations' => function (array $c): array {
                 $failures = [];
                 foreach ($c['LOG']['TYPO3']['CMS']['deprecations']['writerConfiguration'] ?? [] as $level => $writers) {
@@ -396,7 +382,7 @@ class SettingsChecker
                 }
                 return $failures;
             },
-            'LOG.Scheduler' => $this->warning(function (array $c): array {
+            'LOG.Scheduler' => function (array $c): array {
                 foreach ($c['LOG']['TYPO3']['CMS']['Scheduler']['writerConfiguration'] ?? [] as $writers) {
                     foreach ((array)$writers as $writer => $options) {
                         if (str_ends_with((string)$writer, 'FileWriter')
@@ -408,10 +394,10 @@ class SettingsChecker
                     }
                 }
                 return ['expected an enabled FileWriter with logFile in LOG.TYPO3.CMS.Scheduler.writerConfiguration'];
-            }),
-            'MAIL.defaultMailFromAddress' => $this->warning(fn(array $c): array => filter_var($c['MAIL']['defaultMailFromAddress'] ?? '', FILTER_VALIDATE_EMAIL)
+            },
+            'MAIL.defaultMailFromAddress' => fn(array $c): array => filter_var($c['MAIL']['defaultMailFromAddress'] ?? '', FILTER_VALIDATE_EMAIL)
                 ? []
-                : [sprintf("is '%s', expected a valid e-mail address (otherwise no-reply@<hostname> is used)", $c['MAIL']['defaultMailFromAddress'] ?? '')]),
+                : [sprintf("is '%s', expected a valid e-mail address (otherwise no-reply@<hostname> is used)", $c['MAIL']['defaultMailFromAddress'] ?? '')],
             'MAIL.transport' => function (array $c): array {
                 $transport = (string)($c['MAIL']['transport'] ?? '');
                 if (in_array(strtolower($transport), ['mbox', 'null'], true) || str_ends_with($transport, 'NullTransport')) {
@@ -423,7 +409,7 @@ class SettingsChecker
                 }
                 return [];
             },
-            'SYS.caching' => $this->warning(function (array $c): array {
+            'SYS.caching' => function (array $c): array {
                 $failures = [];
                 foreach ($c['SYS']['caching']['cacheConfigurations'] ?? [] as $cache => $configuration) {
                     $backend = ltrim((string)($configuration['backend'] ?? ''), '\\');
@@ -432,7 +418,7 @@ class SettingsChecker
                     }
                 }
                 return $failures;
-            }),
+            },
             'SYS.defaultScheme' => fn(array $c): array => ($c['SYS']['defaultScheme'] ?? '') === 'https'
                 ? []
                 : [sprintf("is '%s', expected 'https'", $c['SYS']['defaultScheme'] ?? '')],
@@ -471,15 +457,15 @@ class SettingsChecker
                     ? [sprintf("is '%s', the debug exception handler shows stack traces to every visitor", $value)]
                     : [];
             },
-            'SYS.reverseProxyIP' => $this->warning(function (array $c): array {
+            'SYS.reverseProxyIP' => function (array $c): array {
                 $value = (string)($c['SYS']['reverseProxyIP'] ?? '');
                 return $this->matchesEveryAddress($value)
                     ? [sprintf("is '%s', every client could fake its IP via X-Forwarded-For; use the proxy IPs instead", $value)]
                     : [];
-            }),
-            'SYS.systemMaintainers' => $this->warning(fn(array $c): array => empty($c['SYS']['systemMaintainers'])
+            },
+            'SYS.systemMaintainers' => fn(array $c): array => empty($c['SYS']['systemMaintainers'])
                 ? ['is empty, every admin is a system maintainer (Install Tool, settings)']
-                : []),
+                : [],
             'SYS.trustedHostsPattern' => function (array $c): array {
                 $value = (string)($c['SYS']['trustedHostsPattern'] ?? 'SERVER_NAME');
                 if ($value === 'SERVER_NAME') {
@@ -490,16 +476,6 @@ class SettingsChecker
                 return $matchesAnyHost ? [sprintf("is '%s', which accepts any host header", $value)] : [];
             },
         ];
-    }
-
-    /**
-     * Mark a rule as warning: when it fails, the job only warns (exit code 2) instead of failing.
-     *
-     * @return array{check: Closure, warning: true}
-     */
-    private function warning(Closure $check): array
-    {
-        return ['check' => $check, 'warning' => true];
     }
 
     private function isTruthy(mixed $value): bool
